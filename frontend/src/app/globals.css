@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-[9px] px-4 py-2.5 text-sm font-semibold whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply btn bg-indigo-600 text-white shadow-[0_1px_2px_rgba(79,70,229,.3),0_4px_10px_-2px_rgba(79,70,229,.35)];
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 border border-slate-200;
+  }
+  .card {
+    @apply rounded-card bg-white border border-slate-200;
+  }
+}

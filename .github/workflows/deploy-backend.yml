@@ -1,0 +1,24 @@
+name: Deploy Backend (Render)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Render deploys straight from GitHub once the repo is connected in
+      # the Render dashboard, so this job just makes that deploy explicit
+      # and visible in Actions. Requires repo secret RENDER_DEPLOY_HOOK_URL
+      # (Render dashboard > your service > Settings > Deploy Hook).
+      - name: Trigger Render deploy
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL secret not set yet — skipping. See README > Manual setup."
+            exit 0
+          fi
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

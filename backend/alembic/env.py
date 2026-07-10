@@ -5,12 +5,9 @@ from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.core.config import get_settings
+from app.models import Base  # noqa: F401 — imports every model so Base.metadata is complete
 
-# Phase 2 will import the declarative Base + all models here so
-# `alembic revision --autogenerate` can diff against them, e.g.:
-#   from app.db.base import Base
-#   target_metadata = Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

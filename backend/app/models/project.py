@@ -8,14 +8,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin, UUIDPkMixin
 
 
-class ProjectStatus(str, enum.Enum):
+class ProjectStatus(enum.StrEnum):
     active = "active"
     done = "done"
     paused = "paused"
     relegated = "relegated"
 
 
-class MediaType(str, enum.Enum):
+class MediaType(enum.StrEnum):
     image = "image"
     video = "video"
     render_3d = "3d_render"

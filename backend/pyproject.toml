@@ -36,6 +36,25 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# B008 (Depends(...) in a default arg) is the standard, intended FastAPI
+# dependency-injection pattern — not a real bug, so it's excluded globally
+# rather than noqa'd on every route.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+# Without this, ruff's import sorter can misclassify local first-party
+# modules (and even the `alembic` package, since `alembic/` is also a
+# subdirectory of this project) — being explicit avoids that ambiguity.
+known-first-party = ["app"]
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+# Hand-written schema migrations mirror SQLAlchemy column definitions
+# 1:1 with the models they came from — wrapping every long `sa.Column(...)`
+# call to fit 100 chars hurts readability more than it helps, and import
+# order in a migration file has no functional meaning.
+"alembic/env.py" = ["I001"]
+"alembic/versions/*.py" = ["E501", "I001"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin, UUIDPkMixin
 
 
-class BOMItemStatus(str, enum.Enum):
+class BOMItemStatus(enum.StrEnum):
     available = "available"
     low_stock = "low_stock"
     missing = "missing"
@@ -22,7 +22,9 @@ class BOM(UUIDPkMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )
 
-    items: Mapped[list["BOMItem"]] = relationship(back_populates="bom", cascade="all, delete-orphan")
+    items: Mapped[list["BOMItem"]] = relationship(
+        back_populates="bom", cascade="all, delete-orphan"
+    )
 
 
 class BOMItem(UUIDPkMixin, TimestampMixin, Base):

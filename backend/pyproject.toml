@@ -27,6 +27,13 @@ dependencies = [
     "python-docx>=1.1",
     "openpyxl>=3.1",
     "pandas>=2.2",
+    # Fuzzy string matching for the Phase 4 BOM matcher and bulk-import
+    # column auto-mapper — a pure-C-extension library, not a GPU/ML model,
+    # to keep the deploy footprint small (see app/schemas/inventory.py's
+    # module docstring for why real embedding-based matching is deferred).
+    "rapidfuzz>=3.10",
+    # S3-compatible client for uploading component images to Cloudflare R2.
+    "boto3>=1.35",
 ]
 
 [dependency-groups]

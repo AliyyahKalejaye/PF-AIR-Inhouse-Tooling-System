@@ -75,3 +75,41 @@ export async function apiPostForm<T>(path: string, form: Record<string, string>)
   if (!res.ok) return parseErrorAndThrow(res);
   return res.json() as Promise<T>;
 }
+
+export async function apiPatch<T>(path: string, body: unknown, token?: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return parseErrorAndThrow(res);
+  return res.json() as Promise<T>;
+}
+
+export async function apiDelete(path: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) return parseErrorAndThrow(res);
+}
+
+// Multipart file uploads (component images, BOM spreadsheets, bulk-import
+// spreadsheets) — deliberately no Content-Type header here. Setting one
+// manually on a fetch() call with a FormData body drops the multipart
+// boundary the browser generates, which silently breaks the upload.
+export async function apiPostFile<T>(path: string, formData: FormData, token?: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  if (!res.ok) return parseErrorAndThrow(res);
+  return res.json() as Promise<T>;
+}

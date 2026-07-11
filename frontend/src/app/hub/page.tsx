@@ -1,11 +1,11 @@
 "use client";
 
 // Tool Hub (screen 4/18) — the landing spot after login, and where every
-// future tool gets a card. Inventory Management and Projects Progress
-// Report are tagged "Coming soon" here rather than "Live" (as shown in the
-// original mockup) because their frontends don't exist yet — Phase 5 and
-// Phase 7 respectively flip these to real, clickable cards once built.
+// future tool gets a card. Inventory Management went live in Phase 5 and
+// is now a real clickable card. Projects Progress Report stays "Coming
+// soon" until Phase 7 ships its frontend.
 
+import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
@@ -18,6 +18,7 @@ function ToolCard({
   description,
   tag,
   soon,
+  href,
 }: {
   icon: React.ReactNode;
   iconBg: string;
@@ -25,8 +26,9 @@ function ToolCard({
   description: string;
   tag: string;
   soon?: boolean;
+  href?: string;
 }) {
-  return (
+  const card = (
     <div
       className={`flex items-center gap-4 rounded-2xl border-[1.5px] p-5 ${
         soon
@@ -62,6 +64,8 @@ function ToolCard({
       </div>
     </div>
   );
+
+  return href && !soon ? <Link href={href}>{card}</Link> : card;
 }
 
 function HubContent() {
@@ -88,8 +92,8 @@ function HubContent() {
           <ToolCard
             iconBg="linear-gradient(135deg,#4f46e5,#7c3aed)"
             name="Inventory Management"
-            tag="Coming soon"
-            soon
+            tag="Live"
+            href="/inventory"
             description="Search, log, and track engineering components across aerospace, electronics, and mechanical categories."
             icon={
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

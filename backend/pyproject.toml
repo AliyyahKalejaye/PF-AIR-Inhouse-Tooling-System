@@ -13,6 +13,12 @@ dependencies = [
     "alembic>=1.14",
     "pgvector>=0.3.6",
     "passlib[bcrypt]>=1.7.4",
+    # passlib (unmaintained since 2020) does an internal self-test that
+    # breaks on bcrypt>=4.1's stricter error handling — it raises
+    # "password cannot be longer than 72 bytes" on startup for ANY
+    # password, not just long ones. Pinning below that version is the
+    # standard workaround until passlib is replaced or patched upstream.
+    "bcrypt>=4.0,<4.1",
     "python-jose[cryptography]>=3.3",
     "python-multipart>=0.0.17",
     "redis>=5.2",

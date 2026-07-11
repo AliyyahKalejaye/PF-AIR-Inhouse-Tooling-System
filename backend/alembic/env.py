@@ -35,7 +35,15 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    connectable: AsyncEngine = create_async_engine(settings.database_url)
+    # statement_cache_size=0: DATABASE_URL is Supabase's transaction-mode
+    # pooler (PgBouncer), which doesn't support asyncpg's named prepared
+    # statements — see app/db/session.py's engine setup for the full
+    # explanation. Without this, migrations fail intermittently with
+    # DuplicatePreparedStatementError as soon as any other connection has
+    # touched the pooler.
+    connectable: AsyncEngine = create_async_engine(
+        settings.database_url, connect_args={"statement_cache_size": 0}
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

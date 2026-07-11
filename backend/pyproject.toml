@@ -59,6 +59,14 @@ known-third-party = ["alembic"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# The `engine` fixture in tests/conftest.py is session-scoped (one asyncpg
+# connection pool for the whole test run) — pytest-asyncio's default gives
+# every test its own event loop, which orphans that pool after the first
+# test and produces "another operation is in progress" / "attached to a
+# different loop" errors on every test after it. Pinning both scopes to
+# "session" keeps one event loop for the whole run, matching the fixture.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 
 [tool.mypy]

@@ -5,10 +5,9 @@
 // through the hub. Per the design spec, this is the same strip on every
 // tool page, just with a different `current` link highlighted.
 //
-// Inventory Management went live in Phase 5. Projects Progress Report is
-// still "Coming soon" until Phase 7 ships — linking to a page that doesn't
-// exist would be a broken link, not a real feature. Flip its `href` +
-// `live` below once Phase 7 lands.
+// Inventory Management went live in Phase 5, Projects Progress Report in
+// Phase 7. Engineering Change Requests is still "Coming soon" — flip its
+// `href` + `live` below once that phase lands.
 
 import Link from "next/link";
 
@@ -44,8 +43,8 @@ const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: bool
   {
     key: "projects",
     label: "Projects Progress Report",
-    href: null, // becomes "/projects" in Phase 7
-    live: false,
+    href: "/projects",
+    live: true,
     icon: (
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 11l3 3L22 4" />

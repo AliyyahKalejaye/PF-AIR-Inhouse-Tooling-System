@@ -1,9 +1,9 @@
 "use client";
 
 // Tool Hub (screen 4/18) — the landing spot after login, and where every
-// future tool gets a card. Inventory Management went live in Phase 5 and
-// is now a real clickable card. Projects Progress Report stays "Coming
-// soon" until Phase 7 ships its frontend.
+// future tool gets a card. Inventory Management went live in Phase 5,
+// Projects Progress Report in Phase 7. Engineering Change Requests stays
+// "Coming soon" until its own phase ships.
 
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -105,8 +105,8 @@ function HubContent() {
           <ToolCard
             iconBg="linear-gradient(135deg,#0e7490,#0891b2)"
             name="Projects Progress Report"
-            tag="Coming soon"
-            soon
+            tag="Live"
+            href="/projects"
             description="Track project status from active to done, with CAD and code inspection built in."
             icon={
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

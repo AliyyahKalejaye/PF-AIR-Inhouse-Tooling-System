@@ -1,0 +1,18 @@
+# Cloudflare Pages redirects — this app is a full static export
+# (output: "export" in next.config.mjs, no Node server), so the two
+# dynamic routes under /projects/[id] only exist on disk as one
+# placeholder-built bundle (see src/app/projects/[id]/page.tsx). These
+# rules serve that same static bundle for any real project id, with a
+# 200 (rewrite, not redirect) so the URL bar keeps the real id and the
+# client-side useParams() hook can read it after hydration.
+#
+# IMPORTANT: Cloudflare Pages applies _redirects rules unconditionally —
+# it does NOT check for a matching real static asset first. So without
+# the passthrough rule below, /projects/new would match the /projects/:id
+# wildcard (":id" matches any single path segment, including "new") and
+# get silently rewritten to the placeholder project-detail bundle,
+# breaking the "Add New Project" page on any direct load or refresh.
+# First match wins, so the passthrough must come before the wildcard.
+/projects/new          /projects/new                 200
+/projects/:id/edit     /projects/placeholder/edit    200
+/projects/:id          /projects/placeholder         200

@@ -24,6 +24,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
 import { DeleteProjectModal } from "@/components/projects/DeleteProjectModal";
+import { MediaViewerModal } from "@/components/projects/viewers/MediaViewerModal";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { categoryStyle } from "@/lib/category-colors";
@@ -118,6 +119,7 @@ function ProjectDetailContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [openMediaIndex, setOpenMediaIndex] = useState<number | null>(null);
 
   const fetchProject = useCallback(() => {
     if (!token) return;
@@ -333,14 +335,14 @@ function ProjectDetailContent() {
                 }
               >
                 <div className="grid grid-cols-4 gap-3.5">
-                  {project.media.map((media) => {
+                  {project.media.map((media, mediaIndex) => {
                     const tile = MEDIA_TILE[media.media_type];
                     const isImage = media.media_type === "image";
                     return (
                       <button
                         type="button"
                         key={media.id}
-                        onClick={() => window.open(media.file_url, "_blank")}
+                        onClick={() => setOpenMediaIndex(mediaIndex)}
                         className={`group relative flex aspect-square flex-col justify-end overflow-hidden rounded-xl text-left ${
                           media.media_type === "cad" ? "border border-slate-200" : ""
                         }`}
@@ -465,6 +467,10 @@ function ProjectDetailContent() {
           onCancel={() => setDeleteOpen(false)}
           onDeleted={() => router.push("/projects")}
         />
+      )}
+
+      {openMediaIndex !== null && (
+        <MediaViewerModal media={project.media} openIndex={openMediaIndex} onClose={() => setOpenMediaIndex(null)} />
       )}
     </div>
   );

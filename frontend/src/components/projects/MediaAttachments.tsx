@@ -152,34 +152,42 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
   return (
     <div>
       <div className="grid grid-cols-5 gap-3">
-        {TILES.map((tile) => (
-          <div key={tile.type}>
-            <button
-              type="button"
-              onClick={() => (tile.type === "code" ? setCodeUrlOpen((v) => !v) : fileInputRefs.current[tile.type]?.click())}
-              className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-slate-200 bg-slate-50 py-6 text-center text-slate-400 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
-            >
-              {tile.icon}
-              <div className="text-[12.5px] font-bold text-slate-700">{tile.label}</div>
-              <div className="text-[10.5px] text-slate-400">{tile.hint}</div>
-            </button>
-            {tile.type !== "code" && (
-              <input
-                ref={(el) => {
-                  fileInputRefs.current[tile.type] = el;
-                }}
-                type="file"
-                multiple
-                accept={ACCEPT[tile.type]}
-                className="hidden"
-                onChange={(e) => {
-                  handleFiles(tile.type, e.target.files);
-                  e.target.value = "";
-                }}
-              />
-            )}
-          </div>
-        ))}
+        {TILES.map((tile) => {
+          // TypeScript doesn't carry `tile.type !== "code"` narrowing
+          // across the onChange closure below (property-access narrowing
+          // is lost across nested function boundaries) — binding it to a
+          // local const first is the standard fix, since narrowing on a
+          // plain variable *does* survive into closures.
+          const uploadType = tile.type !== "code" ? tile.type : null;
+          return (
+            <div key={tile.type}>
+              <button
+                type="button"
+                onClick={() => (uploadType ? fileInputRefs.current[uploadType]?.click() : setCodeUrlOpen((v) => !v))}
+                className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-slate-200 bg-slate-50 py-6 text-center text-slate-400 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                {tile.icon}
+                <div className="text-[12.5px] font-bold text-slate-700">{tile.label}</div>
+                <div className="text-[10.5px] text-slate-400">{tile.hint}</div>
+              </button>
+              {uploadType && (
+                <input
+                  ref={(el) => {
+                    fileInputRefs.current[uploadType] = el;
+                  }}
+                  type="file"
+                  multiple
+                  accept={ACCEPT[uploadType]}
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFiles(uploadType, e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {codeUrlOpen && (

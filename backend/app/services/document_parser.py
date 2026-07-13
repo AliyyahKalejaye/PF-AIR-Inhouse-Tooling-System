@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 
 import pdfplumber
 from docx import Document
+from docx.document import Document as DocxDocument
 from docx.opc.constants import RELATIONSHIP_TYPE
 from fastapi import HTTPException, UploadFile, status
 from rapidfuzz import fuzz, process
@@ -181,7 +182,7 @@ async def _parse_docx(raw: bytes) -> tuple[dict[str, ParsedField], list[ParsedMe
     return _finalize_fields(captures), media, None
 
 
-async def _extract_docx_images(document: Document) -> list[ParsedMedia]:
+async def _extract_docx_images(document: DocxDocument) -> list[ParsedMedia]:
     media: list[ParsedMedia] = []
     for rel in document.part.rels.values():
         if rel.reltype != RELATIONSHIP_TYPE.IMAGE or rel.is_external:

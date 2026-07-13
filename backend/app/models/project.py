@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPkMixin
+from app.models.component import Component
 
 
 class ProjectStatus(enum.StrEnum):
@@ -81,4 +82,8 @@ class MILItem(UUIDPkMixin, TimestampMixin, Base):
     component_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("components.id", ondelete="RESTRICT"), nullable=False
     )
+    # No back_populates — Component doesn't need a reverse `mil_items`
+    # collection of its own, same one-directional pattern as
+    # BOMItem.matched_component/suggested_component in app/models/bom.py.
+    component: Mapped[Component] = relationship()
     quantity_required: Mapped[int] = mapped_column(Integer, default=1, nullable=False)

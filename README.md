@@ -94,3 +94,10 @@ This repo is being built phase by phase — see the task list in this
 session for the full 10-phase plan. Phase 1 (this commit) is scaffolding
 only: no real endpoints, no database schema, no auth yet. That starts in
 Phase 2.
+
+## Adding a new tool
+
+See [`docs/adding-a-new-tool.md`](docs/adding-a-new-tool.md) — the backend
+model → schema → service → route pattern and frontend page → component →
+lib-client pattern every existing tool (Inventory, Projects) follows, plus
+the gotchas worth knowing before you hit them.

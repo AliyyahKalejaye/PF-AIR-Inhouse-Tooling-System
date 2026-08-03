@@ -4,7 +4,11 @@
 # placeholder-built bundle (see src/app/projects/[id]/page.tsx). These
 # rules serve that same static bundle for any real project id, with a
 # 200 (rewrite, not redirect) so the URL bar keeps the real id and the
-# client-side useParams() hook can read it after hydration.
+# client-side usePathname() hook can read it after hydration. (Not
+# useParams() — that reflects the build-time "placeholder" param forever
+# in a static export, since there's no server to re-match the real URL.
+# This bit us in QA: every project open sent the literal string
+# "placeholder" to the API instead of the real UUID.)
 #
 # IMPORTANT: Cloudflare Pages applies _redirects rules unconditionally —
 # it does NOT check for a matching real static asset first. So without

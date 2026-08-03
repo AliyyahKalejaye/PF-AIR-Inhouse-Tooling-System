@@ -13,13 +13,21 @@
 // this directory for why: `output: "export"` (static export, deployed to
 // Cloudflare Pages with no Node server) requires generateStaticParams()
 // on this dynamic [id] segment, and Next.js only honors that export from
-// a Server Component file, not one marked "use client". The real
-// per-project id is read client-side via useParams() below, independent
-// of whatever placeholder param the static build used.
+// a Server Component file, not one marked "use client".
+//
+// The real per-project id is read client-side via usePathname(), NOT
+// useParams(). For a static export there's no server doing per-request
+// route matching, so useParams() just reflects the params baked in at
+// build time — always `{ id: "placeholder" }`, no matter what URL the
+// browser actually requested. usePathname() always reflects the live
+// browser URL, so it's the only reliable way to read this segment. (This
+// was a real bug found in QA: every project detail/edit load was sending
+// the literal string "placeholder" to the backend instead of the real
+// UUID, which the API correctly rejected as an invalid UUID.)
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
@@ -111,8 +119,9 @@ function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: 
 function ProjectDetailContent() {
   const { token } = useAuth();
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
+  const pathname = usePathname();
+  // "/projects/<id>" -> ["", "projects", "<id>"] -> index 2.
+  const projectId = pathname.split("/")[2] ?? "";
 
   const [project, setProject] = useState<ProjectRead | null>(null);
   const [loading, setLoading] = useState(true);

@@ -9,10 +9,15 @@
 // directory for why (static export requires generateStaticParams from a
 // Server Component; this file's "use client" directive would make Next
 // ignore that export if it lived here).
+//
+// The real project id is read via usePathname(), NOT useParams() — see
+// the comment in ../ProjectDetailClient.tsx for why useParams() is wrong
+// here (it returns the build-time "placeholder" id, not the real one, in
+// a static export with no server-side route matching).
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
@@ -24,8 +29,9 @@ import { ProjectRead, getProject } from "@/lib/projects";
 function EditProjectContent() {
   const { token } = useAuth();
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
+  const pathname = usePathname();
+  // "/projects/<id>/edit" -> ["", "projects", "<id>", "edit"] -> index 2.
+  const projectId = pathname.split("/")[2] ?? "";
 
   const [project, setProject] = useState<ProjectRead | null>(null);
   const [loading, setLoading] = useState(true);

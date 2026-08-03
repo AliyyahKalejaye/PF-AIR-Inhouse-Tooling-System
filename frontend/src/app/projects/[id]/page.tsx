@@ -11,8 +11,11 @@
 // Pages' _redirects (see frontend/public/_redirects) rewrites any real
 // `/projects/<uuid>` URL to this same statically-generated bundle with a
 // 200 status, and ProjectDetailClient reads the REAL id client-side via
-// useParams() after hydration — the placeholder is only ever used to
-// produce one build-time HTML/JS output for the route pattern to exist.
+// usePathname() after hydration — NOT useParams(), which would just
+// return this build-time "placeholder" value forever, since there's no
+// server here to re-match the route against the actual URL. The
+// placeholder is only ever used to produce one build-time HTML/JS output
+// for the route pattern to exist.
 import { ProjectDetailClient } from "./ProjectDetailClient";
 
 export function generateStaticParams() {

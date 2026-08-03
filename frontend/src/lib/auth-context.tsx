@@ -11,7 +11,7 @@
 // any earlier would produce a hydration mismatch.
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiGet, apiPost, apiPostForm, ApiError } from "./api";
+import { apiGet, apiPatch, apiPost, apiPostForm, ApiError } from "./api";
 
 const TOKEN_STORAGE_KEY = "pf_auth_token";
 
@@ -46,6 +46,8 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => void;
+  updateProfile: (name: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -108,8 +110,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const updateProfile = useCallback(
+    async (name: string) => {
+      if (!token) throw new ApiError(401, "Not signed in.");
+      const updated = await apiPatch<AuthUser>("/api/v1/auth/me", { name }, token);
+      setUser(updated);
+    },
+    [token]
+  );
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!token) throw new ApiError(401, "Not signed in.");
+      await apiPost<{ message: string }>(
+        "/api/v1/auth/change-password",
+        { current_password: currentPassword, new_password: newPassword },
+        token
+      );
+    },
+    [token]
+  );
+
   return (
-    <AuthContext.Provider value={{ status, user, token, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{ status, user, token, login, signup, logout, updateProfile, changePassword }}
+    >
       {children}
     </AuthContext.Provider>
   );

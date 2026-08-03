@@ -133,9 +133,19 @@ export function buildFileTree(entries: GitTreeEntry[]): FileTreeNode[] {
       if (!name) continue;
       pathSoFar = pathSoFar ? `${pathSoFar}/${name}` : name;
       const isLeaf = i === segments.length - 1;
-      if (isLeaf) {
-        siblings.push({ name, path: pathSoFar, type: entry.type, children: [] });
+      if (isLeaf && entry.type === "blob") {
+        siblings.push({ name, path: pathSoFar, type: "blob", children: [] });
       } else {
+        // Either a genuine intermediate directory (not a leaf), or an
+        // explicit `tree`-type entry for this exact path — GitHub's
+        // recursive tree API always returns one of those for every
+        // directory, in addition to the blob entries for the files
+        // inside it. Registering it in `dirs` here (rather than only
+        // creating dirs on demand from a child's path) means that
+        // explicit entry and any child file discovered later both
+        // resolve to the SAME node instead of the child creating a
+        // second, duplicate "src" alongside the first — this dir may
+        // already be registered from an earlier sibling, so reuse it.
         let dir = dirs.get(pathSoFar);
         if (!dir) {
           dir = { name, path: pathSoFar, type: "tree", children: [] };

@@ -24,6 +24,15 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const current = images[index];
 
+  // R2 objects can go missing (deleted externally, a bad/expired URL) —
+  // without this, a broken image is just a small broken-icon glyph on a
+  // black background with no explanation. Reset whenever the viewed image
+  // changes, since the error belongs to that specific file_url.
+  const [imageError, setImageError] = useState(false);
+  useEffect(() => {
+    setImageError(false);
+  }, [index]);
+
   const goPrev = () => setIndex((i) => (i - 1 + images.length) % images.length);
   const goNext = () => setIndex((i) => (i + 1) % images.length);
 
@@ -90,12 +99,30 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
       )}
 
       <div className="flex flex-1 items-center justify-center overflow-hidden px-24 pb-6 pt-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={current.file_url}
-          alt={current.filename ?? ""}
-          className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_30px_70px_-15px_rgba(0,0,0,.65)]"
-        />
+        {imageError ? (
+          <div className="flex flex-col items-center gap-3 text-center text-slate-400">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 16l5-5c.8-.8 2-.8 2.8 0L16 16M14 14l1.5-1.5c.8-.8 2-.8 2.8 0L21 15" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M4 4l16 16" stroke="#f87171" />
+            </svg>
+            <p className="max-w-xs text-[13px]">
+              This image couldn&apos;t be loaded — it may have been moved or removed from storage.
+            </p>
+            <a href={current.file_url} target="_blank" rel="noreferrer" className="btn-secondary">
+              Try opening directly
+            </a>
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={current.file_url}
+            alt={current.filename ?? ""}
+            onError={() => setImageError(true)}
+            className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_30px_70px_-15px_rgba(0,0,0,.65)]"
+          />
+        )}
       </div>
 
       <div className="relative z-20 flex flex-col items-center gap-3 pb-7">

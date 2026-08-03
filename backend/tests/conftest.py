@@ -64,3 +64,26 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest_asyncio.fixture
+async def auth_headers(client: AsyncClient) -> dict[str, str]:
+    """A signed-up-and-logged-in user's Authorization header, for tests
+    that don't care about auth mechanics themselves (that's test_auth.py's
+    job) and just need a valid token to call a protected route."""
+    payload = {
+        "name": "Test Engineer",
+        "email": "test.engineer@proforcedefence.com",
+        "staff_id": "PF-9001",
+        "password": "correct-horse-battery",
+    }
+    signup_res = await client.post("/api/v1/auth/signup", json=payload)
+    assert signup_res.status_code == 201, signup_res.text
+
+    login_res = await client.post(
+        "/api/v1/auth/login",
+        data={"username": payload["email"], "password": payload["password"]},
+    )
+    assert login_res.status_code == 200, login_res.text
+    token = login_res.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

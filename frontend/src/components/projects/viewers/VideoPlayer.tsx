@@ -36,6 +36,10 @@ export function VideoPlayer({ media, onClose }: Props) {
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(1); // index into SPEEDS, default 1x
+  // Same reasoning as ImageLightbox's imageError — an R2 object that's
+  // gone missing shouldn't just be a silent black rectangle with dead
+  // controls underneath it.
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -118,22 +122,40 @@ export function VideoPlayer({ media, onClose }: Props) {
       />
 
       <div className="flex flex-1 items-center justify-center overflow-hidden px-10 pb-28 pt-2">
-        <video
-          ref={videoRef}
-          src={media.file_url}
-          className="max-h-full max-w-full rounded-[10px] shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]"
-          onClick={togglePlay}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-          onVolumeChange={(e) => {
-            setVolume(e.currentTarget.volume);
-            setMuted(e.currentTarget.muted);
-          }}
-        />
+        {videoError ? (
+          <div className="flex flex-col items-center gap-3 text-center text-slate-400">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="1" y="5" width="15" height="14" rx="2" />
+              <path d="M23 7l-7 5 7 5V7z" />
+              <path d="M2 4l20 16" stroke="#f87171" />
+            </svg>
+            <p className="max-w-xs text-[13px]">
+              This video couldn&apos;t be loaded — it may have been moved or removed from storage.
+            </p>
+            <a href={media.file_url} target="_blank" rel="noreferrer" className="btn-secondary">
+              Try opening directly
+            </a>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            src={media.file_url}
+            className="max-h-full max-w-full rounded-[10px] shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]"
+            onClick={togglePlay}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+            onVolumeChange={(e) => {
+              setVolume(e.currentTarget.volume);
+              setMuted(e.currentTarget.muted);
+            }}
+            onError={() => setVideoError(true)}
+          />
+        )}
       </div>
 
+      {!videoError && (
       <div className="absolute inset-x-0 bottom-0 z-20 px-8 pb-6 pt-10" style={{ background: "linear-gradient(to top, rgba(2,6,23,.95), rgba(2,6,23,.75) 55%, transparent)" }}>
         <div className="mx-auto mb-4 max-w-[1180px]">
           <div
@@ -199,6 +221,7 @@ export function VideoPlayer({ media, onClose }: Props) {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

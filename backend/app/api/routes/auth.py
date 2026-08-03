@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.rate_limit import rate_limiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
@@ -11,8 +12,20 @@ from app.schemas.auth import Token, UserCreate, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Signup: 5/hour/IP — generous for a real new hire, tight enough to blunt
+# scripted account-spam. Login: 10/5min/IP — loose enough that someone
+# fumbling their password a few times isn't locked out, tight enough to
+# make brute-forcing a password impractical.
+_signup_rate_limit = rate_limiter("signup", limit=5, window_seconds=3600)
+_login_rate_limit = rate_limiter("login", limit=10, window_seconds=300)
 
-@router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/signup",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_signup_rate_limit)],
+)
 async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> User:
     existing = await db.execute(
         select(User).where((User.email == payload.email) | (User.staff_id == payload.staff_id))
@@ -35,7 +48,7 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> Use
     return user
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(_login_rate_limit)])
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),

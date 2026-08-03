@@ -4,7 +4,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import auth, bom, bulk_import, categories, components, health, projects
+from app.api.routes import (
+    auth,
+    bom,
+    bulk_import,
+    categories,
+    components,
+    health,
+    notifications,
+    projects,
+)
 from app.core.config import get_settings
 from app.core.logging import configure_logging, logger
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
@@ -84,3 +93,4 @@ app.include_router(categories.router, prefix=settings.api_prefix)
 app.include_router(bom.router, prefix=settings.api_prefix)
 app.include_router(bulk_import.router, prefix=settings.api_prefix)
 app.include_router(projects.router, prefix=settings.api_prefix)
+app.include_router(notifications.router, prefix=settings.api_prefix)

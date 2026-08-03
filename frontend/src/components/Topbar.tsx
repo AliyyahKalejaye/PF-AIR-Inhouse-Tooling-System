@@ -7,8 +7,15 @@
 // the tool-switcher pill instead, per the design system spec.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import {
+  getUnreadCount,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type Notification,
+} from "@/lib/notifications";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -18,8 +25,206 @@ function initials(name: string): string {
   return result || "?";
 }
 
+// Relative-time label for the notification dropdown — "2m ago" / "3h
+// ago" / "5d ago" rather than a raw timestamp, to match the compact
+// feel of the rest of the dropdown.
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const NOTIFICATION_ICON_PATHS: Record<string, string> = {
+  component_out_of_stock: "M12 9v4M12 17h.01M10.3 3.9L2.7 17a2 2 0 001.7 3h15.2a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z",
+  component_low_stock: "M12 9v4M12 17h.01M10.3 3.9L2.7 17a2 2 0 001.7 3h15.2a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z",
+  component_deleted: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6h14z",
+  project_created: "M12 5v14M5 12h14",
+  project_status_changed: "M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0114-4.9M20 14a8 8 0 01-14 4.9",
+  project_deleted: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6h14z",
+};
+
+function NotificationBell({ token }: { token: string }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const { unread_count } = await getUnreadCount(token);
+      setUnreadCount(unread_count);
+    } catch {
+      // Polling — a transient failure just means we try again in 30s,
+      // not worth surfacing to the user.
+    }
+  }, [token]);
+
+  // Poll the lightweight unread-count endpoint rather than the full list
+  // — the dropdown's actual contents are only fetched on open, below.
+  useEffect(() => {
+    void refreshUnreadCount();
+    const interval = setInterval(() => void refreshUnreadCount(), 30000);
+    return () => clearInterval(interval);
+  }, [refreshUnreadCount]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  async function toggleOpen() {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      try {
+        const res = await listNotifications(token, { limit: 15 });
+        setItems(res.items);
+        setUnreadCount(res.unread_count);
+      } catch {
+        // Leave whatever was last successfully loaded (or the empty
+        // state) rather than blocking the dropdown from opening at all.
+      } finally {
+        setLoaded(true);
+      }
+    }
+  }
+
+  async function handleItemClick(notification: Notification) {
+    if (!notification.is_read) {
+      setItems((prev) =>
+        prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      try {
+        await markNotificationRead(token, notification.id);
+      } catch {
+        // Best-effort — worst case it shows unread again next refresh.
+      }
+    }
+    setOpen(false);
+  }
+
+  async function handleMarkAllRead() {
+    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead(token);
+    } catch {
+      // Best-effort, same as above.
+    }
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => void toggleOpen()}
+        title="Notifications"
+        className="relative hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200 sm:flex"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 01-3.46 0" />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
+            <span className="text-[13px] font-extrabold text-slate-900">Notifications</span>
+            {items.some((n) => !n.is_read) && (
+              <button
+                type="button"
+                onClick={() => void handleMarkAllRead()}
+                className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            {!loaded ? (
+              <div className="px-3.5 py-6 text-center text-[13px] text-slate-400">Loading…</div>
+            ) : items.length === 0 ? (
+              <div className="px-3.5 py-6 text-center text-[13px] text-slate-400">
+                You&apos;re all caught up.
+              </div>
+            ) : (
+              items.map((n) => {
+                const iconPath = NOTIFICATION_ICON_PATHS[n.type];
+                const content = (
+                  <div
+                    className={`flex gap-2.5 border-b border-slate-50 px-3.5 py-3 last:border-b-0 hover:bg-slate-50 ${
+                      n.is_read ? "" : "bg-indigo-50/50"
+                    }`}
+                  >
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d={iconPath} />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[12.5px] font-bold text-slate-900">{n.title}</span>
+                        {!n.is_read && (
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600" />
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[12px] leading-snug text-slate-500">{n.message}</p>
+                      <span className="mt-1 block text-[11px] text-slate-400">
+                        {relativeTime(n.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                );
+
+                return n.link ? (
+                  <Link
+                    key={n.id}
+                    href={n.link}
+                    onClick={() => void handleItemClick(n)}
+                    className="block"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => void handleItemClick(n)}
+                    className="block w-full text-left"
+                  >
+                    {content}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Topbar({ toolName }: { toolName?: string }) {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -58,23 +263,13 @@ export function Topbar({ toolName }: { toolName?: string }) {
       <div className="flex-1" />
 
       <div className="relative flex shrink-0 items-center gap-2.5 md:gap-4">
-        {/* Notifications has no backend yet — shown but clearly inert
-            (muted, not-allowed cursor, tooltip) rather than looking
-            clickable and silently doing nothing. Settings is a real page
-            now (Phase 10) and links there. Both drop below `sm` so the
-            essential bits (tool switcher, avatar menu) always have room —
-            Settings is still reachable on mobile via the avatar dropdown
-            below. */}
-        <div
-          className="hidden h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400 sm:flex"
-          title="Notifications — coming soon"
-          aria-disabled="true"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 01-3.46 0" />
-          </svg>
-        </div>
+        {/* Real notifications feed as of Phase 11 — see
+            lib/notifications.ts and NotificationBell above. Settings is a
+            real page too (Phase 10) and links there. Both drop below `sm`
+            so the essential bits (tool switcher, avatar menu) always have
+            room — Settings is still reachable on mobile via the avatar
+            dropdown below; notifications is desktop/tablet-only for now. */}
+        {token && <NotificationBell token={token} />}
         <Link
           href="/settings"
           title="Settings"

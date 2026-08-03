@@ -16,6 +16,7 @@ from app.schemas.inventory import (
     ComponentUpdate,
     InventoryStats,
 )
+from app.services.notifications import notify_component_deleted, notify_on_stock_change
 from app.services.r2 import upload_component_image
 
 router = APIRouter(prefix="/components", tags=["inventory"])
@@ -140,6 +141,7 @@ async def update_component(
     current_user: User = Depends(get_current_user),
 ) -> Component:
     component = await _get_component_or_404(db, component_id)
+    old_quantity = component.quantity
 
     updates = payload.model_dump(exclude_unset=True)
     if "sku" in updates and updates["sku"] and updates["sku"] != component.sku:
@@ -153,6 +155,9 @@ async def update_component(
     for field_name, value in updates.items():
         setattr(component, field_name, value)
 
+    if "quantity" in updates or "low_stock_threshold" in updates:
+        await notify_on_stock_change(db, component, old_quantity)
+
     await db.commit()
     return await _get_component_or_404(db, component_id)
 
@@ -164,6 +169,7 @@ async def delete_component(
     current_user: User = Depends(get_current_user),
 ) -> None:
     component = await _get_component_or_404(db, component_id)
+    await notify_component_deleted(db, component)
     await db.delete(component)
     await db.commit()
 

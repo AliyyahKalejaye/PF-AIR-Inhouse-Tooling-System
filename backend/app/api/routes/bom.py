@@ -20,6 +20,7 @@ from app.schemas.inventory import (
     BOMSummary,
 )
 from app.services.bom_matcher import extract_bom_lines, match_bom_line
+from app.services.notifications import notify_on_stock_change
 from app.services.spreadsheet import parse_spreadsheet
 
 router = APIRouter(prefix="/bom", tags=["inventory"])
@@ -126,7 +127,9 @@ async def reserve_bom(
             continue
 
         component = item.matched_component
+        old_quantity = component.quantity
         component.quantity = max(component.quantity - item.quantity_requested, 0)
+        await notify_on_stock_change(db, component, old_quantity)
         reserved.append(
             BOMReserveResult(
                 component_id=component.id,

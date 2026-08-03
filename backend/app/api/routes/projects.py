@@ -23,6 +23,11 @@ from app.schemas.project import (
     ProjectUpdate,
 )
 from app.services.document_parser import parse_project_document
+from app.services.notifications import (
+    notify_project_created,
+    notify_project_deleted,
+    notify_project_status_changed,
+)
 from app.services.project_media import upload_project_media
 from app.services.r2_client import delete_object, object_key_from_url
 
@@ -103,6 +108,8 @@ async def create_project(
 ) -> Project:
     project = Project(**payload.model_dump(), created_by=current_user.id)
     db.add(project)
+    await db.flush()
+    await notify_project_created(db, project)
     await db.commit()
     return await _get_project_or_404(db, project.id)
 
@@ -124,8 +131,12 @@ async def update_project(
     current_user: User = Depends(get_current_user),
 ) -> Project:
     project = await _get_project_or_404(db, project_id)
-    for field_name, value in payload.model_dump(exclude_unset=True).items():
+    old_status = project.status
+    updates = payload.model_dump(exclude_unset=True)
+    for field_name, value in updates.items():
         setattr(project, field_name, value)
+    if "status" in updates:
+        await notify_project_status_changed(db, project, old_status)
     await db.commit()
     return await _get_project_or_404(db, project_id)
 
@@ -144,6 +155,7 @@ async def delete_project(
         object_key = object_key_from_url(media.file_url)
         if object_key is not None:
             await delete_object(object_key)
+    await notify_project_deleted(db, project)
     await db.delete(project)
     await db.commit()
 

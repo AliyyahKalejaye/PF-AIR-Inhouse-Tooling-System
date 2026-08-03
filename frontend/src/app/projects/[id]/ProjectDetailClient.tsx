@@ -184,25 +184,25 @@ function ProjectDetailContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Projects Progress Report" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
         <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-400">
           <Link href="/projects" className="hover:text-slate-600">
             Projects
           </Link>
           <span>/</span>
-          <b className="max-w-[400px] truncate text-slate-600">{project.title}</b>
+          <b className="max-w-[220px] truncate text-slate-600 sm:max-w-[400px]">{project.title}</b>
         </div>
 
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 sm:h-14 sm:w-14">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
               </svg>
             </div>
             <div>
-              <h1 className="text-[24px] font-extrabold tracking-tight">{project.title}</h1>
+              <h1 className="text-[20px] font-extrabold tracking-tight sm:text-[24px]">{project.title}</h1>
               <div className="mt-1.5 flex items-center gap-2.5 text-[12.5px] text-slate-500">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${style.pill}`}
@@ -271,8 +271,12 @@ function ProjectDetailContent() {
           </div>
         </div>
 
-        <div className="flex items-start gap-5">
-          <div className="min-w-0 flex-1 space-y-5">
+        {/* Sidebar (MIL + Project Info) drops below the main content and
+            goes full-width under `lg` instead of staying pinned at a fixed
+            320px, which would force horizontal scrolling on any phone or
+            tablet-portrait viewport. */}
+        <div className="flex flex-col items-start gap-5 lg:flex-row">
+          <div className="min-w-0 w-full flex-1 space-y-5 lg:w-auto">
             {project.problem_statement && (
               <SectionCard
                 title="Problem Statement"
@@ -343,7 +347,7 @@ function ProjectDetailContent() {
                   </svg>
                 }
               >
-                <div className="grid grid-cols-4 gap-3.5">
+                <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
                   {project.media.map((media, mediaIndex) => {
                     const tile = MEDIA_TILE[media.media_type];
                     const isImage = media.media_type === "image";
@@ -408,7 +412,7 @@ function ProjectDetailContent() {
             )}
           </div>
 
-          <div className="w-[320px] shrink-0 space-y-5">
+          <div className="w-full space-y-5 lg:w-[320px] lg:shrink-0">
             <div className="card p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-[14px] font-extrabold">Minimum Item List (MIL)</h3>

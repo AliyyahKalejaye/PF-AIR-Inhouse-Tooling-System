@@ -57,7 +57,7 @@ function EditProjectContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Projects Progress Report" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
         <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-400">
           <Link href="/projects" className="hover:text-slate-600">
             Projects

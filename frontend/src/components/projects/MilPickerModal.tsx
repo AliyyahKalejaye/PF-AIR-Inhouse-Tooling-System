@@ -38,7 +38,7 @@ export function MilPickerModal({ token, excludeComponentIds, onClose, onAdd }: P
   const excluded = new Set(excludeComponentIds);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/55 px-4 py-14">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/55 px-4 py-6 sm:py-14">
       <div className="flex w-full max-w-[560px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_60px_-12px_rgba(15,23,42,.35)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>

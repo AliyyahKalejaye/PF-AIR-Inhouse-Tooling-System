@@ -47,14 +47,14 @@ function Stepper({ step }: { step: WizardStep }) {
   ];
 
   return (
-    <div className="card mb-[22px] flex items-center px-8 py-[22px]">
+    <div className="card mb-[22px] flex items-center px-3 py-4 sm:px-8 sm:py-[22px]">
       {steps.map((s, i) => {
         const status = s.n < step ? "done" : s.n === step ? "active" : "upcoming";
         return (
           <div key={s.n} className="flex flex-1 items-center">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div
-                className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[14px] font-extrabold ${
+                className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold sm:h-[34px] sm:w-[34px] sm:text-[14px] ${
                   status === "done"
                     ? "bg-emerald-500 text-white"
                     : status === "active"
@@ -70,7 +70,11 @@ function Stepper({ step }: { step: WizardStep }) {
                   s.n
                 )}
               </div>
-              <div>
+              {/* Below `sm` there isn't room for every step's two-line
+                  label without wrapping into the connecting lines — only
+                  the active step's label shows there; the circles/line
+                  colors still carry the done/active/upcoming state. */}
+              <div className={status === "active" ? "" : "hidden sm:block"}>
                 <div
                   className={`text-[10.5px] font-bold uppercase tracking-wide ${
                     status === "done" ? "text-emerald-700" : status === "active" ? "text-indigo-600" : "text-slate-400"
@@ -78,13 +82,13 @@ function Stepper({ step }: { step: WizardStep }) {
                 >
                   Step {s.n}
                 </div>
-                <div className={`mt-0.5 text-[14.5px] font-bold ${status === "upcoming" ? "text-slate-400" : "text-slate-900"}`}>
+                <div className={`mt-0.5 text-[13px] font-bold sm:text-[14.5px] ${status === "upcoming" ? "text-slate-400" : "text-slate-900"}`}>
                   {s.label}
                 </div>
               </div>
             </div>
             {i < steps.length - 1 && (
-              <div className={`mx-[22px] mt-[-9px] h-0.5 flex-1 ${s.n < step ? "bg-emerald-500" : "bg-slate-200"}`} />
+              <div className={`mx-2.5 mt-[-9px] h-0.5 flex-1 sm:mx-[22px] ${s.n < step ? "bg-emerald-500" : "bg-slate-200"}`} />
             )}
           </div>
         );
@@ -184,8 +188,8 @@ function MapStep({
   const hasName = Object.values(mapping).includes("name");
 
   return (
-    <div className="flex items-start gap-5">
-      <div className="card w-[300px] shrink-0 p-5">
+    <div className="flex flex-col items-start gap-5 lg:flex-row">
+      <div className="card w-full p-5 lg:w-[300px] lg:shrink-0">
         <h3 className="mb-3.5 text-[13px] font-extrabold uppercase tracking-wide text-slate-500">Uploaded File</h3>
         <div className="mb-4 flex items-start gap-3 rounded-[10px] border border-dashed border-indigo-100 bg-indigo-50 p-3.5">
           <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border border-indigo-100 bg-white">
@@ -219,19 +223,24 @@ function MapStep({
         </div>
       </div>
 
-      <div className="card flex-1 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 px-[22px] py-[18px]">
+      <div className="card w-full flex-1 overflow-hidden">
+        <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-[18px] sm:flex-row sm:items-center sm:justify-between sm:px-[22px]">
           <div>
             <h3 className="text-[15.5px] font-extrabold">Map Spreadsheet Columns to Inventory Fields</h3>
             <p className="mt-0.5 text-[12.5px] text-slate-500">
               We auto-matched columns where possible — review and adjust the mapping below before continuing.
             </p>
           </div>
-          <div className="rounded-full bg-slate-100 px-[11px] py-1.5 text-[12px] font-bold text-slate-500">
+          <div className="shrink-0 self-start rounded-full bg-slate-100 px-[11px] py-1.5 text-[12px] font-bold text-slate-500">
             {mappedCount} of {preview.columns.length} columns mapped
           </div>
         </div>
 
+        {/* This table has five fixed-width columns designed for a desktop
+            layout (Column · Sample · arrow · Maps To · Status) — rather
+            than squeeze that onto a phone, it scrolls horizontally within
+            its own card instead of breaking the page layout. */}
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13.5px]">
           <thead>
             <tr>
@@ -305,10 +314,11 @@ function MapStep({
             })}
           </tbody>
         </table>
+        </div>
 
         {!hasName && (
-          <div className="flex items-center gap-3 border-t border-amber-200 bg-amber-50 px-[22px] py-3.5 text-[13px] font-semibold" style={{ color: "#b45309" }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2">
+          <div className="flex items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 py-3.5 text-[13px] font-semibold sm:px-[22px]" style={{ color: "#b45309" }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" className="shrink-0">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               <path d="M12 9v4M12 17h.01" />
             </svg>
@@ -316,7 +326,7 @@ function MapStep({
           </div>
         )}
 
-        <div className="flex items-center justify-between px-[22px] pb-5 pt-4">
+        <div className="flex flex-col gap-3 px-4 pb-5 pt-4 sm:flex-row sm:items-center sm:justify-between sm:px-[22px]">
           <span className="text-[12px] text-slate-400">
             {preview.rows_detected} rows will be imported once mapping is confirmed.
           </span>
@@ -384,6 +394,7 @@ function ReviewStep({
         components using the mapping below.
       </p>
 
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse text-[13.5px]">
         <thead>
           <tr>
@@ -404,6 +415,7 @@ function ReviewStep({
           ))}
         </tbody>
       </table>
+      </div>
 
       {preview.warnings.length > 0 && (
         <div className="mt-4 space-y-2">
@@ -421,7 +433,7 @@ function ReviewStep({
         </div>
       )}
 
-      <div className="mt-6 flex justify-between">
+      <div className="mt-6 flex flex-wrap gap-3 sm:justify-between">
         <button type="button" onClick={onBack} className="btn-secondary">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -507,7 +519,7 @@ function BulkImportContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Inventory Management" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
         <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-400">
           <Link href="/inventory" className="hover:text-slate-600">
             Component Inventory

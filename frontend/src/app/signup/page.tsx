@@ -43,7 +43,7 @@ export default function SignupPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      <div className="flex h-16 items-center px-8">
+      <div className="flex h-16 items-center px-4 sm:px-8">
         <Link href="/" className="flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[14px] font-extrabold text-white"
@@ -56,7 +56,7 @@ export default function SignupPage() {
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 pb-14 pt-5">
-        <div className="w-[440px] rounded-2xl border border-slate-200 bg-white px-9 pb-8 pt-9 shadow-[0_20px_40px_-16px_rgba(15,23,42,.10)]">
+        <div className="w-full max-w-[440px] rounded-2xl border border-slate-200 bg-white px-6 pb-8 pt-9 shadow-[0_20px_40px_-16px_rgba(15,23,42,.10)] sm:px-9">
           <div className="mb-7 text-center">
             <div
               className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl"

@@ -49,8 +49,18 @@ function ProjectRow({
   const style = projectStatusStyle(project.status);
 
   return (
-    <div className="card relative flex items-center gap-4 px-5 py-4">
-      <Link href={`/projects/${project.id}`} className="flex flex-1 items-center gap-4 overflow-hidden">
+    // flex-wrap + a full-width title link below `sm` puts the title on
+    // its own line and lets the status pill / actions menu wrap to a
+    // second line, instead of squeezing five items (icon+title, pill,
+    // date, chevron, menu) into one row that overflows a phone width.
+    // The "Updated" date and the purely-decorative chevron just hide
+    // below `sm` — the pill and the actions menu are what actually matter
+    // on a small screen.
+    <div className="card relative flex flex-wrap items-center gap-3 px-4 py-3.5 sm:flex-nowrap sm:gap-4 sm:px-5 sm:py-4">
+      <Link
+        href={`/projects/${project.id}`}
+        className="flex w-full min-w-0 items-center gap-4 overflow-hidden sm:w-auto sm:flex-1"
+      >
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-indigo-50 text-indigo-700">
           <ProjectIcon />
         </div>
@@ -66,14 +76,16 @@ function ProjectRow({
       >
         {style.label}
       </span>
-      <span className="shrink-0 text-[12.5px] text-slate-400">Updated {formatDate(project.updated_at)}</span>
-      <Link href={`/projects/${project.id}`} className="shrink-0 text-slate-300">
+      <span className="hidden shrink-0 text-[12.5px] text-slate-400 sm:inline">
+        Updated {formatDate(project.updated_at)}
+      </span>
+      <Link href={`/projects/${project.id}`} className="hidden shrink-0 text-slate-300 sm:block">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M9 18l6-6-6-6" />
         </svg>
       </Link>
 
-      <div className="relative shrink-0">
+      <div className="relative ml-auto shrink-0 sm:ml-0">
         <button
           type="button"
           onClick={(e) => {
@@ -167,15 +179,15 @@ function ProjectsContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Projects Progress Report" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
-        <div className="mb-[22px] flex items-end justify-between">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
+        <div className="mb-[22px] flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-[26px] font-extrabold tracking-tight">Projects</h1>
+            <h1 className="text-[22px] font-extrabold tracking-tight sm:text-[26px]">Projects</h1>
             <p className="mt-1 text-[14px] text-slate-500">
               All engineering projects, linked to their own progress report page
             </p>
           </div>
-          <Link href="/projects/new" className="btn-primary">
+          <Link href="/projects/new" className="btn-primary self-start">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
             </svg>

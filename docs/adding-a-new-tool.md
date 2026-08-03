@@ -210,6 +210,22 @@ one to add for anything with no auth/context dependency, following
   a new unauthenticated route, say so explicitly in a comment at the call
   site — future readers (and future you) need to know what's reaching out
   to the internet and why.
+- **Every page needs to actually work at a phone width, not just look
+  okay in a desktop browser.** The mockups are desktop-only, but the app
+  is used from phones in practice — Phase 10 QA found real breakage
+  (fixed pixel-width sidebars, 4/5-column grids, `useParams()` returning
+  stale build-time values in the static export) that only showed up once
+  someone opened it on a phone. Concretely: never give a container a bare
+  fixed width like `w-[320px]` — use `w-full lg:w-[320px] lg:shrink-0` (or
+  similar) so it collapses instead of forcing horizontal scroll; stack
+  multi-column `flex`/`grid` layouts under a breakpoint
+  (`flex-col lg:flex-row`, `grid-cols-2 lg:grid-cols-4`); wrap any data
+  table in `<div className="overflow-x-auto">` rather than letting it
+  squish; and check header rows with several buttons (`flex items-center
+  justify-between`) — they're the most common overflow source, and
+  usually just need `flex-col gap-3 sm:flex-row sm:items-center
+  sm:justify-between`. Actually resize a browser (or use dev tools' device
+  toolbar) to ~375px wide before calling a new page done.
 
 ## Checklist
 
@@ -223,5 +239,7 @@ one to add for anything with no auth/context dependency, following
 - [ ] Pages with loading/error/empty states, wrapped in `ProtectedRoute`
 - [ ] Tool Hub card flipped to `Live`
 - [ ] Frontend unit/smoke tests for new `lib/` logic
+- [ ] Checked at ~375px viewport width — no fixed-width overflow, no
+      squished tables, header/action rows stack instead of clipping
 - [ ] `npm run typecheck && npm test && npm run build` and
       `uv run ruff check . && uv run mypy app && uv run pytest` both clean

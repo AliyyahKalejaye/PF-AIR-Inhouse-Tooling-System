@@ -222,9 +222,11 @@ export function ProjectForm({ token, mode, initial, onCancel, onSaved }: Props) 
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="mb-[22px] flex items-center justify-between">
+      <div className="mb-[22px] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight">{mode === "edit" ? "Edit Project" : "New Project"}</h1>
+          <h1 className="text-[22px] font-extrabold tracking-tight sm:text-[26px]">
+            {mode === "edit" ? "Edit Project" : "New Project"}
+          </h1>
           <p className="mt-1 text-[14px] text-slate-500">
             Fill in the fields below — this same form is used later to edit the project once created.
           </p>
@@ -252,8 +254,8 @@ export function ProjectForm({ token, mode, initial, onCancel, onSaved }: Props) 
         </div>
       )}
 
-      <div className="flex items-start gap-5">
-        <div className="min-w-0 flex-1 space-y-5">
+      <div className="flex flex-col items-start gap-5 lg:flex-row">
+        <div className="min-w-0 w-full flex-1 space-y-5 lg:w-auto">
           <div className="card p-6">
             <label htmlFor="proj-title" className="mb-1.5 block text-[13.5px] font-bold text-slate-700">
               Project Title <span className="text-rose-500">*</span>
@@ -337,7 +339,7 @@ export function ProjectForm({ token, mode, initial, onCancel, onSaved }: Props) 
           </FieldCard>
         </div>
 
-        <div className="w-[320px] shrink-0 space-y-5">
+        <div className="w-full space-y-5 lg:w-[320px] lg:shrink-0">
           <div className="card p-5">
             <h3 className="mb-3 flex items-center gap-1.5 text-[14px] font-extrabold">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

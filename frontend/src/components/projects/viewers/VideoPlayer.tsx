@@ -121,7 +121,7 @@ export function VideoPlayer({ media, onClose }: Props) {
         downloadName={media.filename}
       />
 
-      <div className="flex flex-1 items-center justify-center overflow-hidden px-10 pb-28 pt-2">
+      <div className="flex flex-1 items-center justify-center overflow-hidden px-3 pb-28 pt-2 sm:px-10">
         {videoError ? (
           <div className="flex flex-col items-center gap-3 text-center text-slate-400">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -156,7 +156,7 @@ export function VideoPlayer({ media, onClose }: Props) {
       </div>
 
       {!videoError && (
-      <div className="absolute inset-x-0 bottom-0 z-20 px-8 pb-6 pt-10" style={{ background: "linear-gradient(to top, rgba(2,6,23,.95), rgba(2,6,23,.75) 55%, transparent)" }}>
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-6 pt-10 sm:px-8" style={{ background: "linear-gradient(to top, rgba(2,6,23,.95), rgba(2,6,23,.75) 55%, transparent)" }}>
         <div className="mx-auto mb-4 max-w-[1180px]">
           <div
             onClick={handleScrubberClick}
@@ -170,7 +170,11 @@ export function VideoPlayer({ media, onClose }: Props) {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1180px] items-center justify-between">
+        {/* flex-wrap + hiding the volume slider (not the mute button)
+            below `sm` keeps this bar from overflowing a phone width —
+            play/mute/time/speed/fullscreen are the controls that matter
+            most in a cramped space. */}
+        <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-y-2">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -191,7 +195,7 @@ export function VideoPlayer({ media, onClose }: Props) {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 010 7.07" /><path d="M18.36 5.64a9 9 0 010 12.72" /></svg>
                 )}
               </button>
-              <div onClick={handleVolumeClick} className="relative h-1 w-16 cursor-pointer rounded-full bg-white/[.22]">
+              <div onClick={handleVolumeClick} className="relative hidden h-1 w-16 cursor-pointer rounded-full bg-white/[.22] sm:block">
                 <div className="absolute inset-y-0 left-0 rounded-full bg-slate-200" style={{ width: `${muted ? 0 : volume * 100}%` }} />
               </div>
             </div>

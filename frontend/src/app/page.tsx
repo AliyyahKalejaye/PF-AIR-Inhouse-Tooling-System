@@ -44,7 +44,7 @@ export default function Landing() {
       <div className="pointer-events-none absolute left-1/2 top-[60px] z-0 h-[760px] w-[760px] -translate-x-1/2 rounded-full border border-indigo-600/10" />
       <div className="pointer-events-none absolute left-1/2 top-[-40px] z-0 h-[960px] w-[960px] -translate-x-1/2 rounded-full border border-indigo-600/10" />
 
-      <div className="relative z-10 flex h-[76px] items-center px-11">
+      <div className="relative z-10 flex h-[76px] items-center px-5 sm:px-11">
         <div className="flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight">
           <div
             className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] text-[14px] font-extrabold text-white shadow-[0_4px_12px_-2px_rgba(79,70,229,.4)]"
@@ -62,7 +62,7 @@ export default function Landing() {
           Internal Engineering Platform · Proforce Airsystems
         </div>
 
-        <h1 className="max-w-[760px] text-[52px] font-extrabold leading-[1.08] tracking-tight text-slate-900">
+        <h1 className="max-w-[760px] text-[32px] font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-[42px] sm:leading-[1.1] lg:text-[52px] lg:leading-[1.08]">
           Proforce In-House{" "}
           <span
             className="bg-clip-text text-transparent"
@@ -76,7 +76,7 @@ export default function Landing() {
           aerospace, UAV, electronics, and mechanical engineering teams.
         </p>
 
-        <div className="relative z-10 mt-10 w-[420px] rounded-2xl border border-slate-200 bg-white px-8 pb-7 pt-[30px] shadow-[0_24px_48px_-16px_rgba(15,23,42,.14),0_4px_12px_-4px_rgba(15,23,42,.06)]">
+        <div className="relative z-10 mt-10 w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white px-6 pb-7 pt-[30px] shadow-[0_24px_48px_-16px_rgba(15,23,42,.14),0_4px_12px_-4px_rgba(15,23,42,.06)] sm:px-8">
           <h2 className="text-[16px] font-extrabold tracking-tight">Access the Suite</h2>
           <div className="mb-5 mt-1 text-[13px] text-slate-500">
             Log in with your Proforce account, or request access if you&apos;re new.
@@ -105,7 +105,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <div className="relative z-10 mt-11 flex items-center justify-center gap-8">
+        <div className="relative z-10 mt-11 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 sm:gap-x-8">
           <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-600">
               <rect x="3" y="11" width="18" height="10" rx="2" />

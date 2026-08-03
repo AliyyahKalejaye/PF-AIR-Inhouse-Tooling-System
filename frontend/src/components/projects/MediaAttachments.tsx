@@ -151,7 +151,7 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
 
   return (
     <div>
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {TILES.map((tile) => {
           // TypeScript doesn't carry `tile.type !== "code"` narrowing
           // across the onChange closure below (property-access narrowing
@@ -191,7 +191,7 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
       </div>
 
       {codeUrlOpen && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border-[1.5px] border-indigo-100 bg-indigo-50 p-3">
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border-[1.5px] border-indigo-100 bg-indigo-50 p-3 sm:flex-row sm:items-center">
           <input
             autoFocus
             value={codeUrl}
@@ -203,9 +203,9 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
             value={codeLabel}
             onChange={(e) => setCodeLabel(e.target.value)}
             placeholder="Label (optional)"
-            className="w-40 rounded-lg border-[1.5px] border-slate-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-indigo-600"
+            className="w-full rounded-lg border-[1.5px] border-slate-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-indigo-600 sm:w-40"
           />
-          <button type="button" onClick={handleAddCodeUrl} className="btn-primary !px-3 !py-2 text-[12.5px]">
+          <button type="button" onClick={handleAddCodeUrl} className="btn-primary justify-center !px-3 !py-2 text-[12.5px]">
             Add
           </button>
         </div>

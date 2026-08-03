@@ -77,8 +77,7 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
             type="button"
             onClick={goPrev}
             aria-label="Previous image"
-            className="absolute left-8 top-1/2 z-20 flex -translate-y-1/2 items-center justify-center rounded-full border border-white/[.14] bg-white/[.08] text-white hover:bg-white/[.16]"
-            style={{ height: 52, width: 52 }}
+            className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/[.14] bg-white/[.08] text-white hover:bg-white/[.16] sm:left-8 sm:h-[52px] sm:w-[52px]"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M15 18l-6-6 6-6" />
@@ -88,8 +87,7 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
             type="button"
             onClick={goNext}
             aria-label="Next image"
-            className="absolute right-8 top-1/2 z-20 flex -translate-y-1/2 items-center justify-center rounded-full border border-white/[.14] bg-white/[.08] text-white hover:bg-white/[.16]"
-            style={{ height: 52, width: 52 }}
+            className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/[.14] bg-white/[.08] text-white hover:bg-white/[.16] sm:right-8 sm:h-[52px] sm:w-[52px]"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M9 18l6-6-6-6" />
@@ -98,7 +96,10 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
         </>
       )}
 
-      <div className="flex flex-1 items-center justify-center overflow-hidden px-24 pb-6 pt-2">
+      {/* Padding shrinks a lot on mobile — at the desktop px-24 an image
+          would have almost no room left once the prev/next arrows are
+          accounted for on a phone-width viewport. */}
+      <div className="flex flex-1 items-center justify-center overflow-hidden px-12 pb-6 pt-2 sm:px-24">
         {imageError ? (
           <div className="flex flex-col items-center gap-3 text-center text-slate-400">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -128,20 +129,24 @@ export function ImageLightbox({ images, initialIndex, onClose }: Props) {
       <div className="relative z-20 flex flex-col items-center gap-3 pb-7">
         {images.length > 1 && <div className="text-[12px] font-bold tracking-wide text-slate-400">{index + 1} / {images.length}</div>}
         {images.length > 1 && (
-          <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-slate-900/55 p-2.5 backdrop-blur">
-            {images.map((img, i) => (
-              <button
-                key={img.id}
-                type="button"
-                onClick={() => setIndex(i)}
-                className={`h-16 w-16 shrink-0 overflow-hidden rounded-[10px] border-2 ${
-                  i === index ? "border-indigo-600 shadow-[0_0_0_3px_rgba(79,70,229,.35)]" : "border-transparent"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.file_url} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
+          // Scrolls horizontally instead of overflowing off-screen once
+          // there are more thumbnails than fit a phone-width viewport.
+          <div className="max-w-[92vw] overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/55 p-2.5 backdrop-blur">
+            <div className="flex items-center gap-2.5">
+              {images.map((img, i) => (
+                <button
+                  key={img.id}
+                  type="button"
+                  onClick={() => setIndex(i)}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-[10px] border-2 ${
+                    i === index ? "border-indigo-600 shadow-[0_0_0_3px_rgba(79,70,229,.35)]" : "border-transparent"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.file_url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

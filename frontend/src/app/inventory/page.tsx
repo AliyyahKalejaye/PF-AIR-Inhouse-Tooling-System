@@ -178,15 +178,15 @@ function InventoryContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Inventory Management" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
-        <div className="mb-[22px] flex items-end justify-between">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
+        <div className="mb-[22px] flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-[26px] font-extrabold tracking-tight">Component Inventory</h1>
+            <h1 className="text-[22px] font-extrabold tracking-tight sm:text-[26px]">Component Inventory</h1>
             <p className="mt-1 text-[14px] text-slate-500">
               {total.toLocaleString()} component{total === 1 ? "" : "s"}
             </p>
           </div>
-          <div className="flex gap-2.5">
+          <div className="flex flex-wrap gap-2 sm:gap-2.5">
             <Link href="/inventory/bulk-import" className="btn-secondary">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -220,7 +220,7 @@ function InventoryContent() {
           </div>
         </div>
 
-        <div className="mb-[22px] grid grid-cols-4 gap-4">
+        <div className="mb-[22px] grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <button
             type="button"
             onClick={() => handleStatClick("all")}
@@ -333,13 +333,18 @@ function InventoryContent() {
           </div>
         </div>
 
-        <div className="flex items-start gap-5">
-          <div className="card flex-1 overflow-hidden">
+        {/* Stacks (table above, BOM drawer below) below `lg`; side by side
+            above it. The table itself keeps its full column set at any
+            width and scrolls horizontally on narrow viewports instead of
+            squishing every column unreadably thin. */}
+        <div className="flex flex-col items-start gap-5 lg:flex-row">
+          <div className="card w-full flex-1 overflow-hidden">
             {loadError && (
               <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-[13px] font-medium text-rose-600">
                 {loadError}
               </div>
             )}
+            <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[13.5px]">
               <thead>
                 <tr>
@@ -449,6 +454,7 @@ function InventoryContent() {
                 )}
               </tbody>
             </table>
+            </div>
 
             {total > PAGE_SIZE && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-[12.5px] text-slate-500">

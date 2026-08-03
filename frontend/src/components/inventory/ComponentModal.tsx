@@ -98,7 +98,7 @@ export function ComponentModal({ token, categories, editing, onClose, onSaved }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/55 px-4 py-14">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/55 px-4 py-6 sm:py-14">
       <div className="flex w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_60px_-12px_rgba(15,23,42,.35)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
@@ -129,7 +129,7 @@ export function ComponentModal({ token, categories, editing, onClose, onSaved }:
               </div>
             )}
 
-            <div className="mb-5 flex gap-4">
+            <div className="mb-5 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -177,7 +177,7 @@ export function ComponentModal({ token, categories, editing, onClose, onSaved }:
               />
             </div>
 
-            <div className="mb-4 flex gap-3.5">
+            <div className="mb-4 flex flex-col gap-3.5 sm:flex-row">
               <div className="field flex-1">
                 <label htmlFor="comp-type">Type of Component</label>
                 <input

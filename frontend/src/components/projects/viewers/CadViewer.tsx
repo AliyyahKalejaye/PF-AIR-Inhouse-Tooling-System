@@ -295,7 +295,12 @@ export function CadViewer({ media, onClose }: Props) {
 
         {!loading && !loadError && (
           <>
-            <div className="absolute left-4 top-4 bottom-24 z-10 w-[240px] overflow-hidden overflow-y-auto rounded-xl border border-white/10 bg-slate-900/65 backdrop-blur">
+            {/* The floating Model Tree panel eats most of a phone's width
+                at a fixed 240px, leaving almost nothing for the actual
+                model underneath — it's a nice-to-have inspector, not
+                essential to viewing the model, so it just hides below
+                `sm` rather than trying to squeeze in. */}
+            <div className="absolute left-4 top-4 bottom-24 z-10 hidden w-[240px] overflow-hidden overflow-y-auto rounded-xl border border-white/10 bg-slate-900/65 backdrop-blur sm:block">
               <div className="border-b border-white/10 px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                 Model Tree
               </div>
@@ -312,8 +317,8 @@ export function CadViewer({ media, onClose }: Props) {
               </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/65 px-4 py-2.5 backdrop-blur">
-              <p className="text-[11.5px] text-slate-400">Drag to rotate &middot; scroll to zoom &middot; right-drag to pan</p>
+            <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-end gap-3 rounded-xl border border-white/10 bg-slate-900/65 px-4 py-2.5 backdrop-blur sm:justify-between">
+              <p className="hidden text-[11.5px] text-slate-400 sm:block">Drag to rotate &middot; scroll to zoom &middot; right-drag to pan</p>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-0.5 rounded-lg bg-white/[.08] p-1">
                   {(["wireframe", "shaded", "xray"] as const).map((m) => (

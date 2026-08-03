@@ -108,6 +108,11 @@ export function CodeViewer({ media, onClose }: Props) {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
+  // The file tree is a fixed 264px sidebar always visible on desktop, but
+  // that eats most of a phone's width — below `sm` it becomes a toggled
+  // overlay instead (closed by default so the code pane gets the room),
+  // opened via the "Files" button added to the top bar's rightExtra.
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -207,19 +212,33 @@ export function CodeViewer({ media, onClose }: Props) {
       }
       onClose={onClose}
       rightExtra={
-        <a
-          href={media.file_url}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 rounded-lg border border-white/[.14] bg-white/[.08] px-3.5 py-2.5 text-[12.5px] font-semibold text-slate-200 hover:bg-white/[.14]"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          Open on GitHub
-        </a>
+        <>
+          {!repoLoading && !repoError && (
+            <button
+              type="button"
+              onClick={() => setMobileTreeOpen((v) => !v)}
+              className="flex items-center gap-2 rounded-lg border border-white/[.14] bg-white/[.08] px-3.5 py-2.5 text-[12.5px] font-semibold text-slate-200 hover:bg-white/[.14] sm:hidden"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
+              Files
+            </button>
+          )}
+          <a
+            href={media.file_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 rounded-lg border border-white/[.14] bg-white/[.08] px-3.5 py-2.5 text-[12.5px] font-semibold text-slate-200 hover:bg-white/[.14]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            <span className="hidden sm:inline">Open on GitHub</span>
+          </a>
+        </>
       }
     />
   );
@@ -254,13 +273,31 @@ export function CodeViewer({ media, onClose }: Props) {
           </a>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 border-t border-[#232b36]">
-          <div className="w-[264px] shrink-0 overflow-y-auto border-r border-[#232b36] bg-[#10151d] py-3.5">
+        <div className="relative flex min-h-0 flex-1 border-t border-[#232b36]">
+          {mobileTreeOpen && (
+            <div
+              className="fixed inset-0 z-20 bg-black/50 sm:hidden"
+              onClick={() => setMobileTreeOpen(false)}
+            />
+          )}
+          <div
+            className={`${
+              mobileTreeOpen ? "flex" : "hidden"
+            } absolute inset-y-0 left-0 z-30 w-[82vw] max-w-[280px] flex-col overflow-y-auto border-r border-[#232b36] bg-[#10151d] py-3.5 sm:static sm:z-auto sm:flex sm:w-[264px] sm:max-w-none sm:shrink-0`}
+          >
             <div className="px-[18px] pb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Files</div>
             {tree.length === 0 ? (
               <div className="px-[18px] text-[12.5px] text-slate-500">Empty repository.</div>
             ) : (
-              <TreeList nodes={tree} depth={0} selectedPath={selectedPath} onSelect={setSelectedPath} />
+              <TreeList
+                nodes={tree}
+                depth={0}
+                selectedPath={selectedPath}
+                onSelect={(path) => {
+                  setSelectedPath(path);
+                  setMobileTreeOpen(false);
+                }}
+              />
             )}
           </div>
 

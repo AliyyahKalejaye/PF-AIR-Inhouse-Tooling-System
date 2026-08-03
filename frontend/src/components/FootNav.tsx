@@ -13,10 +13,21 @@ import Link from "next/link";
 
 type NavKey = "hub" | "inventory" | "projects" | "ecr";
 
-const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: boolean; icon: React.ReactNode }> = [
+const LINKS: Array<{
+  key: NavKey;
+  label: string;
+  // Shown instead of `label` below the `sm` breakpoint — the full names
+  // ("Engineering Change Requests", "Projects Progress Report") are too
+  // long to wrap comfortably in a footer strip on a phone.
+  shortLabel: string;
+  href: string | null;
+  live: boolean;
+  icon: React.ReactNode;
+}> = [
   {
     key: "hub",
     label: "Tool Hub",
+    shortLabel: "Hub",
     href: "/hub",
     live: true,
     icon: (
@@ -31,6 +42,7 @@ const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: bool
   {
     key: "inventory",
     label: "Inventory Management",
+    shortLabel: "Inventory",
     href: "/inventory",
     live: true,
     icon: (
@@ -43,6 +55,7 @@ const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: bool
   {
     key: "projects",
     label: "Projects Progress Report",
+    shortLabel: "Projects",
     href: "/projects",
     live: true,
     icon: (
@@ -55,6 +68,7 @@ const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: bool
   {
     key: "ecr",
     label: "Engineering Change Requests",
+    shortLabel: "ECR",
     href: null,
     live: false,
     icon: (
@@ -68,37 +82,40 @@ const LINKS: Array<{ key: NavKey; label: string; href: string | null; live: bool
 
 export function FootNav({ current }: { current: NavKey }) {
   return (
-    <div className="flex w-full items-center justify-center border-t border-slate-200 bg-white px-8 py-4">
-      <div className="flex w-full max-w-4xl items-center justify-center gap-1.5">
-        <span className="mr-4 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-slate-400">
+    <div className="flex w-full items-center justify-center border-t border-slate-200 bg-white px-4 py-3 sm:px-8 sm:py-4">
+      {/* "Quick jump" lives inside the same flex-wrap row as the link
+          pills (rather than as a non-wrapping sibling) so the whole strip
+          — label included — can reflow onto multiple lines instead of
+          overflowing horizontally on a phone-width viewport. */}
+      <div className="flex w-full max-w-4xl flex-wrap items-center justify-center gap-1.5">
+        <span className="mr-2 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-slate-400 sm:mr-4">
           Quick jump
         </span>
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {LINKS.map((link, i) => {
-            const isCurrent = link.key === current;
-            const content = (
-              <span
-                className={`flex items-center gap-1.5 rounded-lg border px-3.5 py-1.5 text-[12.5px] font-semibold ${
-                  isCurrent
-                    ? "border-indigo-100 bg-indigo-50 text-indigo-700"
-                    : link.live
-                      ? "border-transparent text-slate-600"
-                      : "border-transparent text-slate-400"
-                }`}
-                title={link.live ? undefined : "Coming soon"}
-              >
-                {link.icon}
-                {link.label}
-              </span>
-            );
-            return (
-              <div key={link.key} className="flex items-center gap-1.5">
-                {i > 0 && <span className="mx-1 h-4 w-px bg-slate-200" />}
-                {link.href ? <Link href={link.href}>{content}</Link> : content}
-              </div>
-            );
-          })}
-        </div>
+        {LINKS.map((link, i) => {
+          const isCurrent = link.key === current;
+          const content = (
+            <span
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] font-semibold sm:px-3.5 ${
+                isCurrent
+                  ? "border-indigo-100 bg-indigo-50 text-indigo-700"
+                  : link.live
+                    ? "border-transparent text-slate-600"
+                    : "border-transparent text-slate-400"
+              }`}
+              title={link.live ? undefined : "Coming soon"}
+            >
+              {link.icon}
+              <span className="sm:hidden">{link.shortLabel}</span>
+              <span className="hidden sm:inline">{link.label}</span>
+            </span>
+          );
+          return (
+            <div key={link.key} className="flex items-center gap-1.5">
+              {i > 0 && <span className="mx-1 hidden h-4 w-px bg-slate-200 sm:block" />}
+              {link.href ? <Link href={link.href}>{content}</Link> : content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

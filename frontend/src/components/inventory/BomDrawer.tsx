@@ -20,7 +20,7 @@ interface Props {
 
 export function BomDrawer({ result, loading, error, onUploadClick, onReserve, reserving, reserveResult }: Props) {
   return (
-    <div className="w-[360px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_40px_-12px_rgba(15,23,42,.18)]">
+    <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_40px_-12px_rgba(15,23,42,.18)] lg:w-[360px] lg:shrink-0">
       <div className="flex items-center justify-between border-b border-slate-100 px-[18px] py-4">
         <h3 className="text-[15px] font-extrabold">BOM Check</h3>
         {result && <span className="text-[12px] font-semibold text-slate-400">{result.filename}</span>}

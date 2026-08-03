@@ -89,7 +89,7 @@ function ChoiceStep({
       <h1 className="mb-1.5 text-[28px] font-extrabold tracking-tight">New Project</h1>
       <p className="mb-8 text-[14.5px] text-slate-500">Choose how you&apos;d like to add this project</p>
 
-      <div className="mb-6 grid grid-cols-2 gap-5 text-left">
+      <div className="mb-6 grid grid-cols-1 gap-5 text-left sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setSelected("upload")}
@@ -167,7 +167,7 @@ function ChoiceStep({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-left">
+      <div className="flex flex-col items-start gap-4 text-left sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-[520px] text-[12.5px] text-slate-400">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1 inline-block align-[-2px]">
             <circle cx="12" cy="12" r="10" />
@@ -176,7 +176,7 @@ function ChoiceStep({
           Extraction is rule-based (heading match against the standard template) — you&apos;ll review every field
           before saving.
         </p>
-        <div className="flex gap-2.5">
+        <div className="flex shrink-0 gap-2.5">
           <Link href="/projects" className="btn-secondary">
             Cancel
           </Link>
@@ -307,8 +307,8 @@ function ReviewStep({
         </div>
       )}
 
-      <div className="flex items-start gap-5">
-        <div className="w-[260px] shrink-0">
+      <div className="flex flex-col items-start gap-5 lg:flex-row">
+        <div className="w-full lg:w-[260px] lg:shrink-0">
           <div className="card p-5 text-center">
             <div className="mx-auto mb-3 flex h-24 w-24 items-center justify-center rounded-xl bg-slate-50 text-slate-300">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -354,11 +354,11 @@ function ReviewStep({
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-5">
+        <div className="min-w-0 w-full flex-1 space-y-5 lg:w-auto">
           <div className="card p-6">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-[15px] font-extrabold">Extracted Project Fields</h3>
-              <div className="flex items-center gap-3 text-[11.5px] font-semibold text-slate-500">
+              <div className="flex flex-wrap items-center gap-3 text-[11.5px] font-semibold text-slate-500">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" /> Matched from heading
                 </span>
@@ -430,7 +430,7 @@ function ReviewStep({
                   ✓ {parsed.media.length} file{parsed.media.length === 1 ? "" : "s"} found
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {parsed.media.map((m, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -451,7 +451,7 @@ function ReviewStep({
 
           <div className="card p-6">
             <h3 className="mb-3 text-[14px] font-extrabold uppercase tracking-wide text-slate-500">Planning &amp; Status</h3>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[13px] font-bold text-slate-700">Status</label>
                 <select
@@ -477,9 +477,9 @@ function ReviewStep({
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-5">
+      <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[12.5px] text-slate-400">You can edit any field above, including matched ones, before saving.</p>
-        <div className="flex gap-2.5">
+        <div className="flex shrink-0 gap-2.5">
           <button type="button" onClick={onStartOver} className="btn-secondary">
             Start Over
           </button>
@@ -531,7 +531,7 @@ function NewProjectContent() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar toolName="Projects Progress Report" />
 
-      <div className="flex-1 px-8 pb-10 pt-7">
+      <div className="flex-1 px-4 pb-6 pt-5 sm:px-8 sm:pb-10 sm:pt-7">
         <Breadcrumb step={step} />
 
         {step === "choice" && (

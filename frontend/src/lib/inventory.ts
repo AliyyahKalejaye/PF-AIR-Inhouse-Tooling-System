@@ -149,8 +149,22 @@ export interface BulkImportSkippedRow {
   reason: string;
 }
 
+// A row that fuzzy-matched an existing component (by name + brand)
+// instead of creating a duplicate — its quantity was added to that
+// component's stock. See backend/app/services/bulk_import.py's
+// DEDUP_MATCH_THRESHOLD for the matching logic.
+export interface BulkImportUpdatedRow {
+  row_index: number;
+  component_id: string;
+  name: string;
+  previous_quantity: number;
+  added_quantity: number;
+  new_quantity: number;
+}
+
 export interface BulkImportCommitResponse {
   created: number;
+  updated: BulkImportUpdatedRow[];
   skipped_rows: BulkImportSkippedRow[];
   warnings: string[];
 }

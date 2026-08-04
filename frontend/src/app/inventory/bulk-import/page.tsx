@@ -21,6 +21,7 @@ import {
   BulkImportCommitResponse,
   BulkImportPreviewResponse,
   BulkImportTargetField,
+  BulkImportUpdatedRow,
   commitBulkImport,
   previewBulkImport,
 } from "@/lib/inventory";
@@ -448,6 +449,15 @@ function ReviewStep({
   );
 }
 
+function UpdatedRowLine({ row }: { row: BulkImportUpdatedRow }) {
+  return (
+    <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3.5 py-2 text-[12.5px] font-medium text-indigo-700">
+      Row {row.row_index + 1}: matched existing component <b>{row.name}</b> — quantity{" "}
+      {row.previous_quantity} + {row.added_quantity} = {row.new_quantity} (no duplicate created).
+    </div>
+  );
+}
+
 function DoneStep({ result, onReset }: { result: BulkImportCommitResponse; onReset: () => void }) {
   return (
     <div className="card p-10 text-center">
@@ -459,8 +469,18 @@ function DoneStep({ result, onReset }: { result: BulkImportCommitResponse; onRes
       <h3 className="mb-1.5 text-[18px] font-extrabold">Import complete</h3>
       <p className="mb-5 text-[13.5px] text-slate-500">
         {result.created} component{result.created === 1 ? "" : "s"} created.
+        {result.updated.length > 0 &&
+          ` ${result.updated.length} matched existing components — quantity added instead of duplicating.`}
         {result.skipped_rows.length > 0 && ` ${result.skipped_rows.length} row(s) skipped.`}
       </p>
+
+      {result.updated.length > 0 && (
+        <div className="mx-auto mb-5 max-w-[420px] space-y-1.5 text-left">
+          {result.updated.map((u) => (
+            <UpdatedRowLine key={u.row_index} row={u} />
+          ))}
+        </div>
+      )}
 
       {result.skipped_rows.length > 0 && (
         <div className="mx-auto mb-5 max-w-[420px] space-y-1.5 text-left">

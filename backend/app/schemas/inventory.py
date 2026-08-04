@@ -178,7 +178,22 @@ class BulkImportSkippedRow(BaseModel):
     reason: str
 
 
+class BulkImportUpdatedRow(BaseModel):
+    """A row that fuzzy-matched an existing component (by name + brand)
+    rather than creating a duplicate — its quantity was added to the
+    existing component's stock instead. See
+    app/services/bulk_import.py's DEDUP_MATCH_THRESHOLD."""
+
+    row_index: int
+    component_id: uuid.UUID
+    name: str
+    previous_quantity: int
+    added_quantity: int
+    new_quantity: int
+
+
 class BulkImportCommitResponse(BaseModel):
     created: int
+    updated: list[BulkImportUpdatedRow]
     skipped_rows: list[BulkImportSkippedRow]
     warnings: list[str]

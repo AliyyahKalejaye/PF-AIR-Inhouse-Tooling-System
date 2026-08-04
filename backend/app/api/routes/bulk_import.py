@@ -9,6 +9,7 @@ from app.schemas.inventory import (
     BulkImportCommitResponse,
     BulkImportPreviewResponse,
     BulkImportSkippedRow,
+    BulkImportUpdatedRow,
 )
 from app.services.bulk_import import auto_map_columns, commit_bulk_import
 from app.services.spreadsheet import parse_spreadsheet
@@ -69,12 +70,32 @@ async def commit_import(
     if not payload.rows:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No rows to import.")
 
-    created, skipped, warnings = await commit_bulk_import(
+    created, updated, skipped, warnings = await commit_bulk_import(
         db, mapping=payload.mapping, rows=payload.rows, created_by=current_user.id
     )
 
+    updated_rows = [
+        BulkImportUpdatedRow(
+            row_index=row_index,
+            component_id=component_id,
+            name=name,
+            previous_quantity=previous_quantity,
+            added_quantity=added_quantity,
+            new_quantity=new_quantity,
+        )
+        for (
+            row_index,
+            component_id,
+            name,
+            previous_quantity,
+            added_quantity,
+            new_quantity,
+        ) in updated
+    ]
+
     return BulkImportCommitResponse(
         created=created,
+        updated=updated_rows,
         skipped_rows=[BulkImportSkippedRow(row_index=i, reason=r) for i, r in skipped],
         warnings=warnings,
     )

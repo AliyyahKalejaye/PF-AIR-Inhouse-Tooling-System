@@ -2,6 +2,7 @@
 (the "map your spreadsheet columns to inventory fields" screen).
 """
 
+import re
 import uuid
 
 from rapidfuzz import fuzz, process
@@ -31,22 +32,35 @@ AUTO_MATCH_THRESHOLD = 75.0
 # Parts repeat across BOMs/inventory sheets constantly — this dedups a
 # bulk-import row against an existing component (by name + brand) instead
 # of creating a near-duplicate every time the same part gets re-uploaded.
-# Higher than bom_matcher's MATCH_THRESHOLD (80) because a BOM match only
-# *suggests* a component for a human to confirm, while this one silently
-# writes to inventory — a false match here quietly corrupts a real
-# component's stock count, so it's worth erring toward creating an
-# occasional duplicate over merging two different parts.
-DEDUP_MATCH_THRESHOLD = 87.0
+#
+# Deliberately NOT edit-distance/fuzzy-scored, unlike bom_matcher.py's
+# MATCH_THRESHOLD. A BOM match only *suggests* a component for a human to
+# confirm; this one silently adds to a real component's stock count with
+# no human in the loop. Ordinary fuzzy scorers rate "Widget A" vs
+# "Widget B", or "M3x10 Screw" vs "M3x12 Screw", as highly similar —
+# they're mostly identical text — even though the differing character is
+# exactly what makes them different physical parts. So matching here is
+# normalized-exact instead: strip whitespace/punctuation/case (catching
+# "ESC 30A" vs "ESC-30A" vs "esc30a") and require what's left to be
+# identical. A genuine rewording ("M3 x 10mm Screw" vs "M3x10 Screw")
+# won't match and creates a small duplicate instead — an occasional extra
+# row a human can merge is a far better failure mode than silently
+# combining two different parts' stock counts.
+def _normalize_key(value: str | None) -> str:
+    return re.sub(r"[^a-z0-9]", "", (value or "").lower())
 
 
-def _dedup_key(name: str, brand: str | None) -> str:
-    """A row with no brand will match a same-named component that *does*
-    have a brand a little more loosely than an exact brand-to-brand
-    match would — WRatio tolerates the extra token, just with a lower
-    score. That's the accepted tradeoff for matching on name+brand rather
-    than name alone (see the recommendation this threshold was chosen
-    against)."""
-    return f"{name.strip().lower()} {(brand or '').strip().lower()}".strip()
+def _same_part(name_a: str, brand_a: str | None, name_b: str, brand_b: str | None) -> bool:
+    if _normalize_key(name_a) != _normalize_key(name_b):
+        return False
+    # Brand only disqualifies a match when *both* sides specify one and
+    # they differ — a row with no brand column still matches an existing
+    # branded component by name alone, since many import sheets never
+    # carry brand at all.
+    brand_key_a, brand_key_b = _normalize_key(brand_a), _normalize_key(brand_b)
+    if brand_key_a and brand_key_b and brand_key_a != brand_key_b:
+        return False
+    return True
 
 
 def _best_field_for_header(header: str) -> str | None:
@@ -101,23 +115,19 @@ async def commit_bulk_import(
     """Returns (created_count, updated_rows, skipped_rows, warnings).
 
     updated_rows is (row_index, component_id, name, previous_quantity,
-    added_quantity, new_quantity) — a row that fuzzy-matched an existing
-    component gets its quantity *added* to that component's stock rather
-    than creating a duplicate row.
+    added_quantity, new_quantity) — a row that matched (see _same_part)
+    an existing component gets its quantity *added* to that component's
+    stock rather than creating a duplicate row.
     """
     categories = list((await db.execute(select(Category))).scalars().all())
     category_by_name = {c.name.strip().lower(): c for c in categories}
 
     existing_components = list((await db.execute(select(Component))).scalars().all())
-    # Every component a row can match against, keyed by a string id —
-    # real components use their UUID; components created earlier in *this
-    # same* import use a synthetic "new:<row index>" key, so duplicate
-    # rows within one file merge into each other too instead of each
-    # creating its own near-duplicate.
-    match_pool: dict[str, Component] = {str(c.id): c for c in existing_components}
-    match_keys: dict[str, str] = {
-        key: _dedup_key(c.name, c.brand) for key, c in match_pool.items()
-    }
+    # Every component a row can match against — existing ones, plus
+    # anything created earlier in *this same* import (a list, not a dict,
+    # since matching is now a linear _same_part scan rather than a
+    # rapidfuzz lookup keyed by string).
+    match_pool: list[Component] = list(existing_components)
 
     reverse_mapping = {
         target: source
@@ -153,19 +163,11 @@ async def commit_bulk_import(
 
         brand = field_value(row, "brand")
 
-        match_id: str | None = None
-        if match_keys:
-            best = process.extractOne(
-                _dedup_key(name, brand),
-                match_keys,
-                scorer=fuzz.WRatio,
-                score_cutoff=DEDUP_MATCH_THRESHOLD,
-            )
-            if best is not None:
-                _matched_key, _score, match_id = best
+        component = next(
+            (c for c in match_pool if _same_part(name, brand, c.name, c.brand)), None
+        )
 
-        if match_id is not None:
-            component = match_pool[match_id]
+        if component is not None:
             previous_quantity = component.quantity
             component.quantity += quantity
             await notify_on_stock_change(db, component, previous_quantity)
@@ -204,9 +206,9 @@ async def commit_bulk_import(
         await db.flush()  # populate component.id so later rows can match against it
         created += 1
 
-        temp_key = f"new:{index}"
-        match_pool[temp_key] = component
-        match_keys[temp_key] = _dedup_key(name, brand)
+        # Register so later rows in this same file can match against it
+        # too, instead of each creating its own duplicate.
+        match_pool.append(component)
 
     if unresolved_categories:
         warnings.append(

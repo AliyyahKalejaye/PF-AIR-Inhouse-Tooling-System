@@ -137,6 +137,34 @@ storage). Do both under the same account.
    `r2.dev` subdomain, and copy that URL as `R2_PUBLIC_BASE_URL`. If you
    skip this, leave that value blank for now — nothing breaks, uploaded
    files just won't have a public link yet.
+7. **If you did step 6, also set a CORS policy** — skip this if you left
+   public access off. Without it, images and videos still display fine
+   (the browser doesn't need permission for that), but the 3D Render
+   viewer's "Couldn't load this 3D model" error for every `.glb`/`.obj`
+   file is caused by exactly this: three.js loads those files with
+   `fetch()`, which the browser silently blocks cross-origin unless R2
+   says it's allowed.
+   - Still on the bucket → **Settings** → scroll to **CORS Policy** →
+     **Add CORS policy**.
+   - Cloudflare's editor takes a JSON array — paste this, swapping in
+     your actual Pages URL from step 3d below (and keep the localhost
+     entry so local dev keeps working too):
+     ```json
+     [
+       {
+         "AllowedOrigins": [
+           "https://proforce-tooling.pages.dev",
+           "http://localhost:3000"
+         ],
+         "AllowedMethods": ["GET", "HEAD"],
+         "AllowedHeaders": ["*"],
+         "ExposeHeaders": ["Content-Length", "Content-Range", "Content-Type"],
+         "MaxAgeSeconds": 3600
+       }
+     ]
+     ```
+   - Save. Changes apply immediately — no redeploy needed. Re-open a
+     project's `.glb`/`.obj` file and it should load right away.
 
 ### 3d. Set up Pages (website hosting) — connect it to GitHub
 

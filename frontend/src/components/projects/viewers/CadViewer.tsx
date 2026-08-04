@@ -17,6 +17,15 @@
 // The model tree in the sidebar is built from the real scene graph's
 // named meshes (whatever the file itself calls them), not fabricated
 // part names.
+//
+// Debugging note: if every .glb/.obj file fails with "Couldn't load this
+// 3D model" (the loadError branch below) while images and video work
+// fine on the same project, check the R2 bucket's CORS policy before
+// suspecting this component. <img>/<video> render cross-origin bytes
+// without needing CORS; GLTFLoader/OBJLoader fetch the file via
+// fetch()/XHR, which the browser silently blocks cross-origin without
+// an R2 CORS policy allowing it. See SETUP_GUIDE.md's R2 section
+// ("3c", step 7) for the exact policy to add.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";

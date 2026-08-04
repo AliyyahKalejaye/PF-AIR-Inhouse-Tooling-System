@@ -8,10 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "node scripts/copy-occt-wasm.js"
   },
   "dependencies": {
     "next": "^15.0.0",
+    "occt-import-js": "^0.0.23",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "three": "^0.170.0"

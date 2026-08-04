@@ -1,18 +1,29 @@
 "use client";
 
-// Full-screen 3D/CAD viewer — screen 16/17. Only the "3d_render" media
-// type (.glb/.gltf/.obj, per MediaAttachments' upload tile) is something
-// a browser can actually render — three.js's GLTFLoader transparently
-// handles both binary .glb and JSON .gltf, and OBJLoader covers .obj.
-// The "cad" media type (.step/.stp/.sldprt) has no practical
-// browser-native renderer without a heavy WASM geometry kernel, and this
-// project's sandbox can't add/verify an unverifiable new dependency like
-// that blind (no npm registry access here — see MediaAttachments' fix
-// this session for how that bit us with a much smaller dependency
-// surface). Rather than fabricate fake geometry for a real engineering
-// CAD file — actively misleading in an aerospace/defense context — the
-// "cad" branch below shows an honest "preview unavailable, download to
-// open in CAD software" state using the same chrome.
+// Full-screen 3D/CAD viewer — screen 16/17.
+//
+// Two families of files render in-browser here:
+//  - "3d_render" media (.glb/.gltf/.obj, per MediaAttachments' upload
+//    tile) — three.js's GLTFLoader transparently handles both binary
+//    .glb and JSON .gltf, and OBJLoader covers .obj.
+//  - "cad" media that's .step/.stp — parsed via occt-import-js, a WASM
+//    build of the real OpenCascade geometry kernel (see
+//    frontend/scripts/copy-occt-wasm.js for how its .wasm binary gets
+//    into public/, and src/types/occt-import-js.d.ts for the ambient
+//    types — the package ships none of its own). STEP is an open,
+//    published format, so this is a real parse of the actual geometry,
+//    not a fabricated preview — important in an aerospace/defense
+//    context.
+//
+// "cad" media that's .sldprt is the one thing that still can't render
+// here: SolidWorks' native format is proprietary and undocumented, and
+// no open-source parser exists for it at any effort level — the only
+// ways to read one are SolidWorks itself or a paid conversion service,
+// neither of which this app has. The "!renderable" branch below shows an
+// honest "preview unavailable, download to open in CAD software" state
+// for those rather than faking geometry. If your CAD tool can export
+// STEP (SolidWorks: File > Save As > .STEP), attaching that alongside
+// the .SLDPRT gets you an in-browser preview.
 //
 // The model tree in the sidebar is built from the real scene graph's
 // named meshes (whatever the file itself calls them), not fabricated
@@ -48,6 +59,11 @@ interface Props {
 }
 
 type MaterialMode = "wireframe" | "shaded" | "xray";
+
+// STEP is an open format occt-import-js can actually parse; .sldprt is
+// SolidWorks' proprietary native format and stays download-only (see the
+// top-of-file comment).
+const STEP_EXTENSIONS = new Set(["step", "stp"]);
 
 function fileExtension(media: ProjectMediaRead): string {
   const source = media.filename ?? media.file_url;
@@ -99,7 +115,8 @@ export function CadViewer({ media, onClose }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const ext = useMemo(() => fileExtension(media), [media]);
-  const renderable = media.media_type === "3d_render";
+  const renderable =
+    media.media_type === "3d_render" || (media.media_type === "cad" && STEP_EXTENSIONS.has(ext));
 
   // The load effect below intentionally doesn't depend on `mode` (that
   // would tear down and rebuild the whole scene just to change a
@@ -176,7 +193,82 @@ export function CadViewer({ media, onClose }: Props) {
       setLoading(false);
     };
 
-    if (ext === "obj") {
+    // occt-import-js has no progress-callback equivalent to the three.js
+    // loaders' onProgress, and its own fetch of the STEP file happens
+    // outside three.js entirely — so this branch fetches the file itself
+    // (same media.file_url, same R2 CORS requirement as the GLB/OBJ
+    // branches below) and hands the raw geometry arrays to three.js by
+    // hand rather than going through a Loader subclass.
+    async function loadStepModel() {
+      try {
+        const [{ default: occtimportjs }, response] = await Promise.all([
+          import("occt-import-js"),
+          fetch(media.file_url),
+        ]);
+        if (disposed) return;
+        if (!response.ok) throw new Error(`HTTP ${response.status} fetching STEP file`);
+        const buffer = await response.arrayBuffer();
+        if (disposed) return;
+
+        const occt = await occtimportjs({
+          // The wasm binary is a plain static file at the site root (see
+          // frontend/scripts/copy-occt-wasm.js) — not something webpack
+          // bundles, since occt-import-js's own glue code fetches it by
+          // URL at runtime rather than via an import statement.
+          locateFile: (path) => (path.endsWith(".wasm") ? "/occt-import-js.wasm" : path),
+        });
+        if (disposed) return;
+
+        const result = occt.ReadStepFile(new Uint8Array(buffer), null);
+        if (disposed) return;
+        if (!result.success || result.meshes.length === 0) {
+          throw new Error("occt-import-js returned no geometry for this file");
+        }
+
+        const group = new THREE.Group();
+        result.meshes.forEach((mesh, i) => {
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(mesh.attributes.position.array, 3)
+          );
+          if (mesh.attributes.normal) {
+            geometry.setAttribute(
+              "normal",
+              new THREE.Float32BufferAttribute(mesh.attributes.normal.array, 3)
+            );
+          } else {
+            geometry.computeVertexNormals();
+          }
+          geometry.setIndex(mesh.index.array);
+
+          // STEP files often carry no color at all — fall back to a
+          // neutral engineering-gray rather than three.js's default
+          // stark white, which looks like a loading/error state.
+          const color = mesh.color
+            ? new THREE.Color(mesh.color[0], mesh.color[1], mesh.color[2])
+            : new THREE.Color(0x9ca8c4);
+          const material = new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.55 });
+
+          const threeMesh = new THREE.Mesh(geometry, material);
+          threeMesh.name = mesh.name || `Part ${i + 1}`;
+          group.add(threeMesh);
+        });
+
+        handleLoadedObject(group);
+      } catch (err) {
+        if (!disposed) {
+          // eslint-disable-next-line no-console
+          console.error("STEP load failed:", err);
+          setLoadError("Couldn't load this CAD model.");
+          setLoading(false);
+        }
+      }
+    }
+
+    if (STEP_EXTENSIONS.has(ext)) {
+      loadStepModel();
+    } else if (ext === "obj") {
       new OBJLoader().load(
         media.file_url,
         (object) => handleLoadedObject(object),

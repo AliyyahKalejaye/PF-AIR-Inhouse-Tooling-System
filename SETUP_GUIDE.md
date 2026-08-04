@@ -197,6 +197,15 @@ GitHub Actions workflow already in the repo. This manual click-through in
 step 4-6 is a one-time "create the project" step; after that, deploys are
 automatic.
 
+**Nothing to configure, but worth knowing:** the in-browser STEP/.stp CAD
+viewer relies on a WASM file (`occt-import-js.wasm`) that gets copied into
+`frontend/public/` automatically every time `npm install` runs (a
+`postinstall` script does this) — including on every Cloudflare Pages
+build, since Pages always runs install before build. You don't need to do
+anything for this to work; it's just why you'll see a
+`public/occt-import-js.wasm` file appear locally the first time you run
+`npm install` even though it's not committed to git.
+
 **You now have:** `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
 `R2_SECRET_ACCESS_KEY`, optionally `R2_PUBLIC_BASE_URL`.
 

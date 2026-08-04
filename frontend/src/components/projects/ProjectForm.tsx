@@ -69,6 +69,11 @@ function mediaToStaged(item: ProjectMediaRead): StagedMedia {
     file_url: item.file_url,
     filename: item.filename,
     existingId: item.id,
+    // Real preview for the staged-chip list when editing: an image's own
+    // URL, or a previously generated thumbnail for video/3d_render/cad.
+    // Falls back to the plain label chip (MediaAttachments' default) for
+    // .sldprt/`code`, same as a fresh upload that had nothing to render.
+    previewUrl: item.media_type === "image" ? item.file_url : (item.thumbnail_url ?? undefined),
   };
 }
 
@@ -170,7 +175,7 @@ export function ProjectForm({ token, mode, initial, onCancel, onSaved }: Props) 
     for (const item of media) {
       if (item.existingId) continue;
       if (item.file) {
-        await uploadProjectMedia(token, projectId, item.file, item.media_type);
+        await uploadProjectMedia(token, projectId, item.file, item.media_type, item.thumbnailBlob);
       } else if (item.file_url) {
         await linkProjectMedia(token, projectId, {
           media_type: item.media_type,

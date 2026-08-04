@@ -351,30 +351,53 @@ function ProjectDetailContent() {
                   {project.media.map((media, mediaIndex) => {
                     const tile = MEDIA_TILE[media.media_type];
                     const isImage = media.media_type === "image";
+                    // Real content preview: the image itself, or a
+                    // previously generated thumbnail (captured video
+                    // frame / off-screen 3D-STEP render — see
+                    // lib/media-thumbnail.ts). Falls back to the
+                    // gradient+icon placeholder when there's nothing to
+                    // show (.sldprt, `code`, or a thumbnail that failed
+                    // to generate at upload time).
+                    const previewSrc = isImage ? media.file_url : media.thumbnail_url;
+                    const hasPreview = Boolean(previewSrc);
                     return (
                       <button
                         type="button"
                         key={media.id}
                         onClick={() => setOpenMediaIndex(mediaIndex)}
                         className={`group relative flex aspect-square flex-col justify-end overflow-hidden rounded-xl text-left ${
-                          media.media_type === "cad" ? "border border-slate-200" : ""
+                          media.media_type === "cad" && !hasPreview ? "border border-slate-200" : ""
                         }`}
-                        style={isImage ? undefined : { background: tile.gradient }}
+                        style={hasPreview ? undefined : { background: tile.gradient }}
                       >
-                        {isImage ? (
+                        {hasPreview ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={media.file_url} alt={media.filename ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+                          <img
+                            src={previewSrc ?? undefined}
+                            alt={media.filename ?? ""}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
                         ) : (
                           <div className={`absolute inset-0 flex items-center justify-center ${media.media_type === "cad" ? "text-slate-300" : "text-white/90"}`}>
                             {tile.icon}
                           </div>
+                        )}
+                        {/* Non-image previews (video frame, 3D/STEP
+                            render) still get the type icon as a small
+                            corner badge, so a video thumbnail and a 3D
+                            snapshot remain visually distinguishable at a
+                            glance rather than looking identical. */}
+                        {hasPreview && !isImage && (
+                          <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/45 text-white">
+                            <span className="[&_svg]:h-[15px] [&_svg]:w-[15px]">{tile.icon}</span>
+                          </span>
                         )}
                         <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/40 text-white opacity-0 group-hover:opacity-100">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
                             <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                           </svg>
                         </span>
-                        <div className={`relative z-10 truncate px-2.5 py-2 text-[11px] font-bold ${isImage || media.media_type !== "cad" ? "bg-black/35 text-white" : "text-slate-700"}`}>
+                        <div className={`relative z-10 truncate px-2.5 py-2 text-[11px] font-bold ${hasPreview || media.media_type !== "cad" ? "bg-black/35 text-white" : "text-slate-700"}`}>
                           {media.filename ?? tile.label}
                         </div>
                       </button>

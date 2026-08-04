@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -28,7 +28,7 @@ from app.services.notifications import (
     notify_project_deleted,
     notify_project_status_changed,
 )
-from app.services.project_media import upload_project_media
+from app.services.project_media import upload_project_media, upload_project_media_thumbnail
 from app.services.r2_client import delete_object, object_key_from_url
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -155,6 +155,10 @@ async def delete_project(
         object_key = object_key_from_url(media.file_url)
         if object_key is not None:
             await delete_object(object_key)
+        if media.thumbnail_url:
+            thumb_key = object_key_from_url(media.thumbnail_url)
+            if thumb_key is not None:
+                await delete_object(thumb_key)
     await notify_project_deleted(db, project)
     await db.delete(project)
     await db.commit()
@@ -170,6 +174,12 @@ async def upload_project_media_route(
     project_id: uuid.UUID,
     file: UploadFile,
     media_type: MediaType = Form(...),
+    # Optional client-rendered grid-tile preview (captured video frame, or
+    # an off-screen 3D/STEP render) — see MediaAttachments.tsx /
+    # media-thumbnail.ts on the frontend. Absent for images (the original
+    # is its own thumbnail) and for file types the browser couldn't
+    # render a preview for (.sldprt).
+    thumbnail: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectMedia:
@@ -177,8 +187,15 @@ async def upload_project_media_route(
     file_url, filename = await upload_project_media(
         file, project_id=project.id, media_type=media_type
     )
+    thumbnail_url = None
+    if thumbnail is not None:
+        thumbnail_url = await upload_project_media_thumbnail(thumbnail, project_id=project.id)
     media = ProjectMedia(
-        project_id=project.id, media_type=media_type, file_url=file_url, filename=filename
+        project_id=project.id,
+        media_type=media_type,
+        file_url=file_url,
+        filename=filename,
+        thumbnail_url=thumbnail_url,
     )
     db.add(media)
     await db.commit()
@@ -222,6 +239,10 @@ async def delete_project_media(
     object_key = object_key_from_url(media.file_url)
     if object_key is not None:
         await delete_object(object_key)
+    if media.thumbnail_url:
+        thumb_key = object_key_from_url(media.thumbnail_url)
+        if thumb_key is not None:
+            await delete_object(thumb_key)
     await db.delete(media)
     await db.commit()
 

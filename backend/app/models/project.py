@@ -66,6 +66,13 @@ class ProjectMedia(UUIDPkMixin, TimestampMixin, Base):
     )
     file_url: Mapped[str] = mapped_column(String(1000), nullable=False)
     filename: Mapped[str | None] = mapped_column(String(300))
+    # Client-rendered preview image (a captured video frame, or an
+    # off-screen three.js/occt-import-js snapshot of a 3D/STEP model) used
+    # for the Media & Files grid tile — see app/services/project_media.py's
+    # upload_project_media_thumbnail. Optional: images don't need one (the
+    # original serves as its own thumbnail), and .sldprt/`code` entries
+    # have nothing that can be rendered to snapshot.
+    thumbnail_url: Mapped[str | None] = mapped_column(String(1000))
 
 
 class MILItem(UUIDPkMixin, TimestampMixin, Base):

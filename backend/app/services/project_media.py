@@ -96,6 +96,34 @@ async def upload_project_media(
     return file_url, (file.filename or f"{media_type.value}.{ext}")
 
 
+# Client-rendered snapshots (a captured video frame, or an off-screen
+# three.js/occt-import-js render of a 3D/STEP model — see
+# frontend/src/lib/media-thumbnail.ts), not user-uploaded originals, so a
+# much smaller cap than the real file types above is enough.
+MAX_THUMBNAIL_BYTES = 3 * 1024 * 1024  # 3MB
+
+
+async def upload_project_media_thumbnail(file: UploadFile, *, project_id: uuid.UUID) -> str:
+    """Uploads a grid-tile preview image for a video/3d_render/cad media
+    entry. Optional by design — the frontend only generates one for file
+    types it can actually render off-screen (not .sldprt, not `code`), and
+    a generation failure there (corrupt file, browser can't decode it)
+    just means no thumbnail is sent, not a broken upload."""
+    body = await file.read()
+    if not body:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Thumbnail file is empty."
+        )
+    if len(body) > MAX_THUMBNAIL_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Thumbnail is larger than the {MAX_THUMBNAIL_BYTES // (1024 * 1024)}MB limit.",
+        )
+    content_type = file.content_type or "image/jpeg"
+    object_key = f"projects/{project_id}/thumbnails/{uuid.uuid4().hex}.jpg"
+    return await put_object(object_key=object_key, body=body, content_type=content_type)
+
+
 async def upload_staged_image(*, body: bytes, filename: str, content_type: str) -> str:
     """Stages an image extracted from an uploaded document (Phase 6's
     rule-based parser) before a project exists to attach it to yet — same

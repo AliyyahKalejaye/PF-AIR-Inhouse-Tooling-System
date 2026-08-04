@@ -44,6 +44,11 @@ export interface ProjectMediaRead {
   media_type: MediaType;
   file_url: string;
   filename: string | null;
+  // Client-rendered grid-tile preview (captured video frame, or an
+  // off-screen 3D/STEP render) — see lib/media-thumbnail.ts. Null for
+  // images (the original is its own thumbnail), `code` entries, and
+  // .sldprt files (nothing can render a preview for those).
+  thumbnail_url: string | null;
   created_at: string;
 }
 
@@ -155,11 +160,13 @@ export function uploadProjectMedia(
   token: string,
   projectId: string,
   file: File,
-  mediaType: MediaType
+  mediaType: MediaType,
+  thumbnail?: Blob | null
 ): Promise<ProjectMediaRead> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("media_type", mediaType);
+  if (thumbnail) formData.append("thumbnail", thumbnail, "thumbnail.jpg");
   return apiPostFile<ProjectMediaRead>(`/api/v1/projects/${projectId}/media`, formData, token);
 }
 

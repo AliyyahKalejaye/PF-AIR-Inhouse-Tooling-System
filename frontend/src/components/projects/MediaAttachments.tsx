@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MediaType } from "@/lib/projects";
+import { generateMediaThumbnail } from "@/lib/media-thumbnail";
 
 export interface StagedMedia {
   key: string;
@@ -21,6 +22,12 @@ export interface StagedMedia {
   filename: string | null;
   existingId?: string;
   previewUrl?: string;
+  // Client-rendered preview (captured video frame / off-screen 3D or STEP
+  // render) generated in handleFiles below — uploaded alongside the real
+  // file so the Media & Files grid can show real content instead of a
+  // generic icon. Undefined for images (previewUrl already covers those),
+  // .sldprt, and any file a generation attempt failed for.
+  thumbnailBlob?: Blob;
 }
 
 const ACCEPT: Record<Exclude<MediaType, "code">, string> = {
@@ -121,18 +128,33 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
     };
   }, []);
 
-  function handleFiles(type: Exclude<MediaType, "code">, fileList: FileList | null) {
+  async function handleFiles(type: Exclude<MediaType, "code">, fileList: FileList | null) {
     if (!fileList) return;
-    Array.from(fileList).forEach((file) => {
-      const previewUrl = type === "image" ? URL.createObjectURL(file) : undefined;
+    // Sequential, not Promise.all — 3D/STEP thumbnail generation each
+    // spins up its own WebGL context briefly; running several at once
+    // for a multi-file selection risks exhausting the browser's context
+    // limit rather than just taking a little longer.
+    for (const file of Array.from(fileList)) {
+      let previewUrl = type === "image" ? URL.createObjectURL(file) : undefined;
+      let thumbnailBlob: Blob | undefined;
+
+      if (type !== "image") {
+        const blob = await generateMediaThumbnail(type, file);
+        if (blob) {
+          thumbnailBlob = blob;
+          previewUrl = URL.createObjectURL(blob);
+        }
+      }
+
       onAdd({
         key: `${type}-${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
         media_type: type,
         file,
         filename: file.name,
         previewUrl,
+        thumbnailBlob,
       });
-    });
+    }
   }
 
   function handleAddCodeUrl() {
@@ -180,7 +202,7 @@ export function MediaAttachments({ items, onAdd, onRemove }: Props) {
                   accept={ACCEPT[uploadType]}
                   className="hidden"
                   onChange={(e) => {
-                    handleFiles(uploadType, e.target.files);
+                    void handleFiles(uploadType, e.target.files);
                     e.target.value = "";
                   }}
                 />

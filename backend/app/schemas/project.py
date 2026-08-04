@@ -65,6 +65,7 @@ class ProjectMediaRead(BaseModel):
     media_type: MediaType
     file_url: str
     filename: str | None
+    thumbnail_url: str | None
     created_at: datetime
 
 

@@ -5,16 +5,19 @@
 // file's comment, and app/ecr/[id]/page.tsx's).
 //
 // Actions shown depend on both `ecr.status` and the signed-in user (from
-// useAuth(), mirroring backend/app/api/deps.py's require_admin and
-// api/routes/ecr.py's own checks — this is a UI convenience, not the real
-// gate: the backend rejects anything this page happens to render a button
-// for regardless):
-//   - submitted + admin        -> Approve / Reject (with an optional note)
-//   - approved  + anyone       -> Mark Implemented (closes the loop once
-//                                 the real-world change has actually been
-//                                 made)
-//   - admin (any status), or
-//     requester while submitted -> Edit / Delete (see canManage below)
+// useAuth(), mirroring api/routes/ecr.py's own checks — this is a UI
+// convenience, not the real gate: the backend rejects anything this page
+// happens to render a button for regardless):
+//   - submitted + tagged approver -> Approve / Reject (with an optional
+//                                    note) — no admin escape hatch here,
+//                                    see _require_tagged_approver
+//   - approved  + anyone          -> Mark Implemented (closes the loop
+//                                    once the real-world change has
+//                                    actually been made)
+//   - requester while submitted, or
+//     UserRole.admin (rare in    -> Edit / Delete (see canManage below)
+//     practice — see the User
+//     model)
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -105,9 +108,16 @@ function EcrDetailContent() {
     }
   }
 
+  // UserRole.admin is an escape hatch for edit/delete that's basically
+  // never true in practice — this app has no real admin-provisioning flow
+  // — but approve/reject has no such escape hatch on the backend (see
+  // api/routes/ecr.py's _require_tagged_approver): only the exact person
+  // tagged as assigned_approver can decide, full stop.
   const isAdmin = user?.role === "admin";
   const isOwner = !!user && !!ecr && user.id === ecr.requester?.id;
+  const isTaggedApprover = !!user && !!ecr && user.id === ecr.assigned_approver?.id;
   const canManage = !!ecr && (isAdmin || (isOwner && ecr.status === "submitted"));
+  const canDecide = isTaggedApprover;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -248,7 +258,15 @@ function EcrDetailContent() {
               </div>
             )}
 
-            {ecr.status === "submitted" && isAdmin && (
+            {ecr.status === "submitted" && !canDecide && (
+              <div className="card mt-4 px-5 py-4 text-[13px] text-slate-500 sm:px-6">
+                {ecr.assigned_approver
+                  ? `Awaiting review from ${ecr.assigned_approver.name}.`
+                  : "Nobody's been tagged to review this yet — only the tagged approver can approve or reject it."}
+              </div>
+            )}
+
+            {ecr.status === "submitted" && canDecide && (
               <div className="card mt-4 px-5 py-5 sm:px-6">
                 <div className="mb-3 text-[13.5px] font-bold text-slate-900">Review this request</div>
                 {decisionAction ? (

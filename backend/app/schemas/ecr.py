@@ -34,6 +34,11 @@ class ECRUserRef(BaseModel):
 
     id: uuid.UUID
     name: str
+    # Included so the "who needs to approve" picker can search/display by
+    # email, not just name — there's no admin role gating who can be
+    # tagged (see GET /ecr/approvers), so email is what makes a specific
+    # person unambiguous to pick out of the full user list.
+    email: str
 
 
 class ECRCreate(BaseModel):
@@ -48,10 +53,14 @@ class ECRCreate(BaseModel):
     # this if component_id is also given (a real component wins). See
     # app/models/ecr.py's EngineeringChangeRequest.component_name.
     component_name: str | None = Field(default=None, max_length=300)
-    # Who should review this — must be an admin (checked in the create
-    # route against GET /ecr/approvers' own list). Optional: leaving it
-    # unset still lists the request for every admin, just without a
-    # targeted notification — see notify_ecr_submitted.
+    # Who should review this — any existing user, tagged by email (there's
+    # no admin role gating this: the app has no real admin-provisioning
+    # flow, so "must be an admin" would mean nobody could ever be tagged).
+    # This is the actual approval routing, not just a notification: only
+    # the tagged user can approve/reject this request (see approve_ecr /
+    # reject_ecr in api/routes/ecr.py). Optional — leaving it unset means
+    # the request can't be approved or rejected by anyone until it's
+    # edited to add someone.
     assigned_approver_id: uuid.UUID | None = None
 
 

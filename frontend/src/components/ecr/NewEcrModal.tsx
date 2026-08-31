@@ -4,16 +4,17 @@
 // ComponentModal.tsx (Inventory's Add/Edit form): a fixed-position overlay
 // with a scrollable body and a sticky footer, `field`/`btn-primary`/
 // `btn-secondary` classes from globals.css. Project, component, and
-// approver are all single-select pickers rather than search-as-you-type
-// (like MilPickerModal's), since an ECR only ever needs to reference one
-// row of each, not build up a list.
+// approver are all SearchableSelect pickers (type-to-filter) rather than
+// plain <select>s — the approver list in particular is every user in the
+// app (see lib/ecr.ts's listApprovers), which can get long enough that
+// scrolling a native dropdown stops being reasonable.
 //
 // Doubles as the edit modal (same ComponentModal pattern as its own
 // isEdit): pass `editing` with the current ECRRead to pre-fill every field
 // and call updateEcr instead of createEcr on submit. The caller is
 // responsible for only rendering this in edit mode when the viewer is
-// actually allowed to edit (admin, or the requester while still
-// submitted) — this component doesn't re-check that itself, matching how
+// actually allowed to edit (the requester while still submitted, or an
+// admin) — this component doesn't re-check that itself, matching how
 // DeleteProjectModal etc. trust their caller's gating.
 
 import { useEffect, useState } from "react";
@@ -21,6 +22,7 @@ import { ApiError } from "@/lib/api";
 import { createEcr, ECRPriority, ECRRead, ECRUserRef, listApprovers, updateEcr } from "@/lib/ecr";
 import { listProjects, ProjectListItem } from "@/lib/projects";
 import { Component, listComponents } from "@/lib/inventory";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 interface Props {
   token: string;
@@ -107,6 +109,14 @@ export function NewEcrModal({ token, editing, onClose, onCreated }: Props) {
     }
   }
 
+  const projectOptions = projects.map((p) => ({ value: p.id, label: p.title }));
+  const componentOptions = components.map((c) => ({
+    value: c.id,
+    label: c.name,
+    sublabel: c.sku ?? undefined,
+  }));
+  const approverOptions = approvers.map((a) => ({ value: a.id, label: a.name, sublabel: a.email }));
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/55 px-4 py-6 sm:py-14">
       <div className="flex w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_60px_-12px_rgba(15,23,42,.35)]">
@@ -118,7 +128,7 @@ export function NewEcrModal({ token, editing, onClose, onCreated }: Props) {
             <p className="mt-0.5 text-[12.5px] font-medium text-slate-500">
               {isEdit
                 ? "Still awaiting review — changes here don't restart the approval process."
-                : "Submitted for review — an admin approves or rejects it before anything changes."}
+                : "Tag who needs to review it — only that person can approve or reject it."}
             </p>
           </div>
           <button
@@ -156,72 +166,59 @@ export function NewEcrModal({ token, editing, onClose, onCreated }: Props) {
               </div>
               <div className="field mb-0 sm:w-[150px]">
                 <label htmlFor="ecr-priority">Priority</label>
-                <select
+                <SearchableSelect
                   id="ecr-priority"
                   value={priority}
-                  onChange={(e) => setPriority(e.target.value as ECRPriority)}
-                >
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setPriority(v as ECRPriority)}
+                  options={PRIORITY_OPTIONS}
+                  searchPlaceholder="Search priorities…"
+                />
               </div>
             </div>
 
             <div className="mb-4 flex flex-col gap-3.5 sm:flex-row">
               <div className="field flex-1">
                 <label htmlFor="ecr-project">Related project (optional)</label>
-                <select
+                <SearchableSelect
                   id="ecr-project"
                   value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                >
-                  <option value="">None</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setProjectId}
+                  options={projectOptions}
+                  emptyLabel="None"
+                  searchPlaceholder="Search projects…"
+                />
               </div>
               <div className="field flex-1">
-                <label htmlFor="ecr-approver">Assign to (optional)</label>
-                <select
+                <label htmlFor="ecr-approver">Who needs to approve this? (optional)</label>
+                <SearchableSelect
                   id="ecr-approver"
                   value={assignedApproverId}
-                  onChange={(e) => setAssignedApproverId(e.target.value)}
-                >
-                  <option value="">Any admin</option>
-                  {approvers.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="hint">They&apos;ll get notified this needs their review.</div>
+                  onChange={setAssignedApproverId}
+                  options={approverOptions}
+                  emptyLabel="Nobody yet"
+                  searchPlaceholder="Search by name or email…"
+                />
+                <div className="hint">
+                  {assignedApproverId
+                    ? "They'll get notified, and only they can approve or reject this."
+                    : "Left blank, nobody will be able to approve or reject this until you tag someone."}
+                </div>
               </div>
             </div>
 
             <div className="field">
               <label htmlFor="ecr-component">Related component (optional)</label>
-              <select
+              <SearchableSelect
                 id="ecr-component"
                 value={componentId}
-                onChange={(e) => {
-                  setComponentId(e.target.value);
-                  if (e.target.value) setComponentName("");
+                onChange={(v) => {
+                  setComponentId(v);
+                  if (v) setComponentName("");
                 }}
-              >
-                <option value="">None</option>
-                {components.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.sku ? ` (${c.sku})` : ""}
-                  </option>
-                ))}
-              </select>
+                options={componentOptions}
+                emptyLabel="None"
+                searchPlaceholder="Search components…"
+              />
               <div className="mt-2 flex items-center gap-2 text-[11.5px] font-semibold text-slate-400">
                 <span className="h-px flex-1 bg-slate-200" />
                 or

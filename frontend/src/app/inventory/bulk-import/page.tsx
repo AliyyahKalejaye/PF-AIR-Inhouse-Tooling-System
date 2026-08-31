@@ -13,6 +13,7 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import {
@@ -281,23 +282,18 @@ function MapStep({
                     </svg>
                   </td>
                   <td className="px-[22px] py-3">
-                    <select
-                      value={value}
-                      onChange={(e) => setMapping({ ...mapping, [col.source_column]: e.target.value })}
-                      className={`w-full max-w-[230px] rounded-[9px] border-[1.5px] px-3 py-2 text-[13.5px] font-semibold outline-none ${
-                        value === "skip"
-                          ? "border-slate-200 bg-white text-slate-700"
-                          : "border-indigo-100 bg-indigo-50 text-indigo-700"
-                      }`}
-                    >
-                      <option value="skip">— Select a field —</option>
-                      {BULK_IMPORT_TARGET_FIELDS.map((f) => (
-                        <option key={f} value={f}>
-                          {BULK_IMPORT_FIELD_LABELS[f]}
-                        </option>
-                      ))}
-                      <option value="skip">Skip this column</option>
-                    </select>
+                    <div className="w-full max-w-[230px]">
+                      <SearchableSelect
+                        value={value === "skip" ? "" : value}
+                        onChange={(v) => setMapping({ ...mapping, [col.source_column]: v || "skip" })}
+                        options={BULK_IMPORT_TARGET_FIELDS.map((f) => ({
+                          value: f,
+                          label: BULK_IMPORT_FIELD_LABELS[f],
+                        }))}
+                        emptyLabel="Skip this column"
+                        searchPlaceholder="Search fields…"
+                      />
+                    </div>
                   </td>
                   <td className="px-[22px] py-3">
                     {value !== "skip" ? (

@@ -133,10 +133,12 @@ async def notify_project_deleted(db: AsyncSession, project: Project) -> None:
 
 
 async def notify_ecr_submitted(db: AsyncSession, ecr: EngineeringChangeRequest) -> None:
-    """Targeted at ecr.assigned_approver_id when the requester picked
-    someone (so that admin sees "needs your review" specifically); falls
-    back to a broadcast so an unassigned request still surfaces to every
-    admin who could pick it up."""
+    """Targeted at ecr.assigned_approver_id when the requester tagged
+    someone (that person sees "needs your review" specifically — they're
+    also the only one who can actually approve/reject it, see
+    api/routes/ecr.py's _require_tagged_approver); falls back to a
+    broadcast so an untagged request is at least visible to everyone,
+    even though nobody can act on it until it's tagged."""
     targeted = ecr.assigned_approver_id is not None
     await create_notification(
         db,

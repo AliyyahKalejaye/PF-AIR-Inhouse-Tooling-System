@@ -21,6 +21,10 @@ export interface ECRComponentRef {
 export interface ECRUserRef {
   id: string;
   name: string;
+  // No admin role gates who can be tagged as approver — this app has no
+  // real admin-provisioning flow — so email is what makes a specific
+  // person unambiguous to search for/pick out of the full user list.
+  email: string;
 }
 
 export interface ECRCreate {
@@ -97,9 +101,10 @@ export function listEcrs(token: string, ecrStatus?: ECRStatus): Promise<ECRListI
   return apiGet<ECRListItem[]>(`/api/v1/ecr${qs}`, token);
 }
 
-// Every admin — populates the "who needs to approve" picker on the New
-// Change Request form. A plain GET, not gated to admins-only: any
-// requester needs to be able to see who they can assign to.
+// Every user in the app — populates the "who needs to approve" picker on
+// the New Change Request form. Not filtered to admins: there's no real
+// admin-provisioning flow here, so any user can be tagged as the person
+// who needs to approve a given request.
 export function listApprovers(token: string): Promise<ECRUserRef[]> {
   return apiGet<ECRUserRef[]>("/api/v1/ecr/approvers", token);
 }

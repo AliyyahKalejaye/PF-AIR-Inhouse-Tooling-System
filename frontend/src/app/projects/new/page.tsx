@@ -14,6 +14,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
 import { ProjectForm } from "@/components/projects/ProjectForm";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import {
@@ -454,16 +455,17 @@ function ReviewStep({
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[13px] font-bold text-slate-700">Status</label>
-                <select
+                <SearchableSelect
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-                  className="w-full rounded-[9px] border-[1.5px] border-slate-200 bg-white px-3.5 py-2.5 text-[14px] font-bold text-slate-900 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100"
-                >
-                  <option value="active">Active</option>
-                  <option value="done">Done</option>
-                  <option value="paused">Paused</option>
-                  <option value="relegated">Relegated</option>
-                </select>
+                  onChange={(v) => setStatus(v as ProjectStatus)}
+                  options={[
+                    { value: "active", label: "Active" },
+                    { value: "done", label: "Done" },
+                    { value: "paused", label: "Paused" },
+                    { value: "relegated", label: "Relegated" },
+                  ]}
+                  searchPlaceholder="Search statuses…"
+                />
               </div>
               <div>
                 <label className="mb-1.5 block text-[13px] font-bold text-slate-700">MIL (Minimum Item List)</label>

@@ -37,17 +37,22 @@ class EngineeringChangeRequest(UUIDPkMixin, TimestampMixin, Base):
     audit trail without this table ever mutating inventory/project data on
     its own.
 
-    Review is a single admin sign-off (`reviewed_by` + `review_notes`)
-    rather than a multi-department chain (design/manufacturing/QA) — the
-    only role structure this app has is UserRole.engineer/.admin (see
-    app/models/user.py), so that's what the workflow is built against. See
-    app/api/deps.py's require_admin.
+    Review is a single sign-off (`reviewed_by` + `review_notes`) by
+    whichever person the requester tagged as `assigned_approver` — there's
+    no real admin-provisioning flow in this app (anyone can sign up, and
+    nothing ever promotes a user to UserRole.admin in practice), so
+    approval routing is per-request and by-person rather than by role. See
+    api/routes/ecr.py's approve_ecr / reject_ecr: only the tagged
+    `assigned_approver` can decide on a request, which also means a
+    request left untagged can't be approved or rejected until it's edited
+    to name someone.
 
     Editing and deleting are both locked to `status == submitted` — once a
     request has been decided (approved/rejected/implemented) it's a record
     of what actually happened and shouldn't quietly change shape after the
-    fact. Within that window, both the requester (editing their own
-    still-open request, or withdrawing it) and any admin can act — see
+    fact. Within that window the requester can edit their own still-open
+    request or withdraw it; UserRole.admin (if a row is ever manually
+    flipped to it) can still act on anything as an escape hatch — see
     api/routes/ecr.py's update_ecr / delete_ecr for the exact permission
     check.
     """
@@ -100,11 +105,12 @@ class EngineeringChangeRequest(UUIDPkMixin, TimestampMixin, Base):
     )
     requester: Mapped[User | None] = relationship(foreign_keys=[requested_by])
 
-    # Who's expected to review this — optional (an unassigned request is
-    # still visible to every admin on the ECR list, just not targeted at
-    # one). Deliberately a User, not a role: assigning "an admin" in the
-    # abstract wouldn't give notify_ecr_submitted anyone concrete to
-    # target. The create route only accepts an admin here — see
+    # Who's expected to review this — any existing user, tagged by email;
+    # not gated to a role since this app has no real admin-provisioning
+    # flow. This is the actual approval routing, not just a notification:
+    # only this user can approve/reject the request (see approve_ecr /
+    # reject_ecr in api/routes/ecr.py). Optional — an untagged request just
+    # can't be decided on until it's edited to add someone. See
     # ECRCreate.assigned_approver_id / GET /ecr/approvers.
     assigned_approver_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")

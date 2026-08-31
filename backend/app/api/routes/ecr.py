@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.component import Component
 from app.models.ecr import ECRStatus, EngineeringChangeRequest
@@ -66,10 +66,10 @@ async def _validate_refs(
             )
     if assigned_approver_id is not None:
         approver = await db.get(User, assigned_approver_id)
-        if approver is None or approver.role != UserRole.admin:
+        if approver is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Assigned approver must be an existing admin.",
+                detail="That user could not be found.",
             )
 
 
@@ -91,12 +91,13 @@ async def list_approvers(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[User]:
-    """Every admin user — populates the "who needs to approve" picker on
-    the New Change Request form. Registered before GET /{ecr_id} so
+    """Every user — populates the "who needs to approve" picker on the New
+    Change Request form. Not filtered to UserRole.admin: this app has no
+    real admin-provisioning flow (anyone can sign up, nobody's ever
+    actually promoted), so approval is routed to a specific tagged person
+    rather than gated by role. Registered before GET /{ecr_id} so
     "approvers" doesn't get swallowed by that route's uuid path param."""
-    result = await db.execute(
-        select(User).where(User.role == UserRole.admin).order_by(User.name)
-    )
+    result = await db.execute(select(User).order_by(User.name))
     return list(result.scalars().all())
 
 
@@ -179,14 +180,27 @@ async def update_ecr(
     return await _get_ecr_or_404(db, ecr_id)
 
 
+def _require_tagged_approver(ecr: EngineeringChangeRequest, current_user: User) -> None:
+    """approve_ecr and reject_ecr both gate on the same rule: only the
+    person tagged as `assigned_approver` may decide. Not role-based (see
+    the EngineeringChangeRequest docstring for why) — an untagged request
+    can't be decided on by anyone until it's edited to name someone."""
+    if ecr.assigned_approver_id is None or current_user.id != ecr.assigned_approver_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the person tagged as approver on this request can decide on it.",
+        )
+
+
 @router.post("/{ecr_id}/approve", response_model=ECRRead)
 async def approve_ecr(
     ecr_id: uuid.UUID,
     payload: ECRDecision,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> EngineeringChangeRequest:
     ecr = await _get_ecr_or_404(db, ecr_id)
+    _require_tagged_approver(ecr, current_user)
     if ecr.status != ECRStatus.submitted:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -205,9 +219,10 @@ async def reject_ecr(
     ecr_id: uuid.UUID,
     payload: ECRDecision,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> EngineeringChangeRequest:
     ecr = await _get_ecr_or_404(db, ecr_id)
+    _require_tagged_approver(ecr, current_user)
     if ecr.status != ECRStatus.submitted:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

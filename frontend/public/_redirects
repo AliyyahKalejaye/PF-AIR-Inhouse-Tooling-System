@@ -20,3 +20,8 @@
 /projects/new          /projects/new                 200
 /projects/:id/edit     /projects/placeholder/edit    200
 /projects/:id          /projects/placeholder         200
+
+# ECR has no /ecr/new page (its "New Change Request" form is a modal on
+# the list page, not a route — see components/ecr/NewEcrModal.tsx), so
+# there's no passthrough needed here, just the one dynamic-detail rule.
+/ecr/:id               /ecr/placeholder              200

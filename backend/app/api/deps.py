@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 
 settings = get_settings()
 
@@ -37,3 +37,16 @@ async def get_current_user(
     if user is None:
         raise credentials_error
     return user
+
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """First role-gated dependency in the app (see app/models/user.py's
+    UserRole — `role` existed on User before this but nothing enforced it
+    yet). Used to gate ECR approve/reject: any authenticated user can
+    submit or view an ECR, but only an admin can decide one."""
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an admin can do this.",
+        )
+    return current_user

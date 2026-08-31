@@ -19,6 +19,7 @@ describing.
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.component import Component
+from app.models.ecr import ECRStatus, EngineeringChangeRequest
 from app.models.notification import Notification, NotificationType
 from app.models.project import Project, ProjectStatus
 
@@ -118,4 +119,44 @@ async def notify_project_deleted(db: AsyncSession, project: Project) -> None:
         title="Project deleted",
         message=f"{project.title} was deleted.",
         link="/projects",
+    )
+
+
+async def notify_ecr_submitted(db: AsyncSession, ecr: EngineeringChangeRequest) -> None:
+    await create_notification(
+        db,
+        type=NotificationType.ecr_submitted,
+        title="New engineering change request",
+        message=f"{ecr.title} is awaiting review.",
+        link=f"/ecr/{ecr.id}",
+    )
+
+
+async def notify_ecr_decided(db: AsyncSession, ecr: EngineeringChangeRequest) -> None:
+    """Call after setting status to approved/rejected but before commit —
+    same edge-triggered shape as notify_project_status_changed, just
+    without an old-status check since approve/reject routes only ever
+    move a submitted ECR forward, never re-fire on an already-decided one."""
+    if ecr.status == ECRStatus.approved:
+        title, verb = "Change request approved", "approved"
+    elif ecr.status == ECRStatus.rejected:
+        title, verb = "Change request rejected", "rejected"
+    else:
+        return
+    await create_notification(
+        db,
+        type=NotificationType.ecr_approved if ecr.status == ECRStatus.approved else NotificationType.ecr_rejected,
+        title=title,
+        message=f"{ecr.title} was {verb}.",
+        link=f"/ecr/{ecr.id}",
+    )
+
+
+async def notify_ecr_implemented(db: AsyncSession, ecr: EngineeringChangeRequest) -> None:
+    await create_notification(
+        db,
+        type=NotificationType.ecr_implemented,
+        title="Change request implemented",
+        message=f"{ecr.title} has been implemented.",
+        link=f"/ecr/{ecr.id}",
     )

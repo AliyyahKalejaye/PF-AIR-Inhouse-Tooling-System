@@ -15,6 +15,10 @@ class NotificationType(enum.StrEnum):
     project_created = "project_created"
     project_status_changed = "project_status_changed"
     project_deleted = "project_deleted"
+    ecr_submitted = "ecr_submitted"
+    ecr_approved = "ecr_approved"
+    ecr_rejected = "ecr_rejected"
+    ecr_implemented = "ecr_implemented"
 
 
 class Notification(UUIDPkMixin, TimestampMixin, Base):

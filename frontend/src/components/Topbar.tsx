@@ -46,6 +46,10 @@ const NOTIFICATION_ICON_PATHS: Record<string, string> = {
   project_created: "M12 5v14M5 12h14",
   project_status_changed: "M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0114-4.9M20 14a8 8 0 01-14 4.9",
   project_deleted: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6h14z",
+  ecr_submitted: "M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z",
+  ecr_approved: "M20 6L9 17l-5-5",
+  ecr_rejected: "M18 6L6 18M6 6l12 12",
+  ecr_implemented: "M20 6L9 17l-5-5",
 };
 
 function NotificationBell({ token }: { token: string }) {

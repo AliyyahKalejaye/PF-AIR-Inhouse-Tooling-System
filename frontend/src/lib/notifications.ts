@@ -11,7 +11,11 @@ export type NotificationType =
   | "component_deleted"
   | "project_created"
   | "project_status_changed"
-  | "project_deleted";
+  | "project_deleted"
+  | "ecr_submitted"
+  | "ecr_approved"
+  | "ecr_rejected"
+  | "ecr_implemented";
 
 export interface Notification {
   id: string;

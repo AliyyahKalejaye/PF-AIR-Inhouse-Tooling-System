@@ -2,8 +2,8 @@
 
 // Tool Hub (screen 4/18) — the landing spot after login, and where every
 // future tool gets a card. Inventory Management went live in Phase 5,
-// Projects Progress Report in Phase 7. Engineering Change Requests stays
-// "Coming soon" until its own phase ships.
+// Projects Progress Report in Phase 7, Engineering Change Requests in
+// Phase 12.
 
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -124,9 +124,9 @@ function HubContent() {
           <ToolCard
             iconBg="linear-gradient(135deg,#4f46e5,#7c3aed)"
             name="Engineering Change Requests"
-            tag="Coming soon"
-            soon
-            description="Submit, review, and route ECRs across design, manufacturing, and QA — on the near-term roadmap."
+            tag="Live"
+            href="/ecr"
+            description="Submit, review, and track changes to released projects and components, with admin sign-off before anything changes."
             icon={
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 20h9" />

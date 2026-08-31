@@ -10,6 +10,7 @@ from app.api.routes import (
     bulk_import,
     categories,
     components,
+    ecr,
     health,
     notifications,
     projects,
@@ -93,4 +94,5 @@ app.include_router(categories.router, prefix=settings.api_prefix)
 app.include_router(bom.router, prefix=settings.api_prefix)
 app.include_router(bulk_import.router, prefix=settings.api_prefix)
 app.include_router(projects.router, prefix=settings.api_prefix)
+app.include_router(ecr.router, prefix=settings.api_prefix)
 app.include_router(notifications.router, prefix=settings.api_prefix)

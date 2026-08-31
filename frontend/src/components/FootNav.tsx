@@ -6,8 +6,7 @@
 // tool page, just with a different `current` link highlighted.
 //
 // Inventory Management went live in Phase 5, Projects Progress Report in
-// Phase 7. Engineering Change Requests is still "Coming soon" — flip its
-// `href` + `live` below once that phase lands.
+// Phase 7, Engineering Change Requests in Phase 12.
 
 import Link from "next/link";
 
@@ -69,8 +68,8 @@ const LINKS: Array<{
     key: "ecr",
     label: "Engineering Change Requests",
     shortLabel: "ECR",
-    href: null,
-    live: false,
+    href: "/ecr",
+    live: true,
     icon: (
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 20h9" />

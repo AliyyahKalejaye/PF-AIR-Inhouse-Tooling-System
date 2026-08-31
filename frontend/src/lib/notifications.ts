@@ -15,7 +15,8 @@ export type NotificationType =
   | "ecr_submitted"
   | "ecr_approved"
   | "ecr_rejected"
-  | "ecr_implemented";
+  | "ecr_implemented"
+  | "ecr_commented";
 
 export interface Notification {
   id: string;

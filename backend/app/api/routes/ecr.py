@@ -8,11 +8,21 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.component import Component
-from app.models.ecr import ECRStatus, EngineeringChangeRequest
+from app.models.ecr import ECRComment, ECRStatus, EngineeringChangeRequest
 from app.models.project import Project
 from app.models.user import User, UserRole
-from app.schemas.ecr import ECRCreate, ECRDecision, ECRListItem, ECRRead, ECRUpdate, ECRUserRef
+from app.schemas.ecr import (
+    ECRCommentCreate,
+    ECRCommentRead,
+    ECRCreate,
+    ECRDecision,
+    ECRListItem,
+    ECRRead,
+    ECRUpdate,
+    ECRUserRef,
+)
 from app.services.notifications import (
+    notify_ecr_commented,
     notify_ecr_decided,
     notify_ecr_implemented,
     notify_ecr_submitted,
@@ -284,3 +294,44 @@ async def delete_ecr(
 
     await db.delete(ecr)
     await db.commit()
+
+
+@router.get("/{ecr_id}/comments", response_model=list[ECRCommentRead])
+async def list_ecr_comments(
+    ecr_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ECRComment]:
+    """No separate permission check beyond "the request exists" — anyone
+    who can load the request can read its discussion, same as get_ecr."""
+    await _get_ecr_or_404(db, ecr_id)
+    result = await db.execute(
+        select(ECRComment)
+        .options(selectinload(ECRComment.author))
+        .where(ECRComment.ecr_id == ecr_id)
+        .order_by(ECRComment.created_at)
+    )
+    return list(result.scalars().all())
+
+
+@router.post(
+    "/{ecr_id}/comments", response_model=ECRCommentRead, status_code=status.HTTP_201_CREATED
+)
+async def create_ecr_comment(
+    ecr_id: uuid.UUID,
+    payload: ECRCommentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ECRComment:
+    """Open to anyone who can view the request — comments have no status
+    gate, unlike edit/delete, since discussion is still useful after a
+    decision has been made (e.g. clarifying what "implemented" ended up
+    meaning)."""
+    ecr = await _get_ecr_or_404(db, ecr_id)
+    comment = ECRComment(ecr_id=ecr.id, author_id=current_user.id, body=payload.body.strip())
+    db.add(comment)
+    await db.flush()
+    await notify_ecr_commented(db, ecr, comment, current_user)
+    await db.commit()
+    await db.refresh(comment, attribute_names=["author"])
+    return comment

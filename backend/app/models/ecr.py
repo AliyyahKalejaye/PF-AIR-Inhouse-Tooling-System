@@ -122,3 +122,46 @@ class EngineeringChangeRequest(UUIDPkMixin, TimestampMixin, Base):
     )
     reviewer: Mapped[User | None] = relationship(foreign_keys=[reviewed_by])
     review_notes: Mapped[str | None] = mapped_column(Text)
+
+    # Discussion trail — see ECRComment below. Ordered oldest-first (how a
+    # conversation reads); cascade-deleted with the request since a
+    # comment has no meaning detached from what it's discussing.
+    comments: Mapped[list["ECRComment"]] = relationship(
+        back_populates="ecr", cascade="all, delete-orphan", order_by="ECRComment.created_at"
+    )
+
+
+class ECRComment(UUIDPkMixin, TimestampMixin, Base):
+    """One message in an ECR's discussion trail. No separate permission
+    model: anyone who can load the request (every authenticated user —
+    see get_ecr in api/routes/ecr.py) can read and post its comments,
+    regardless of status — a decided request can still be discussed, it
+    just can't be edited or have its own decision re-made.
+
+    Also doubles as a reminder mechanism for a request that's stalled
+    awaiting a decision: posting one notifies whichever of
+    {assigned_approver, requester} isn't the comment's own author, so a
+    nudge in the thread actually reaches the person who'd otherwise never
+    see it unless they happened to revisit the page. See
+    notify_ecr_commented in app/services/notifications.py.
+    """
+
+    __tablename__ = "ecr_comments"
+
+    ecr_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("engineering_change_requests.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ecr: Mapped[EngineeringChangeRequest] = relationship(back_populates="comments")
+
+    # SET NULL rather than CASCADE on the author's own account deletion —
+    # a comment's text is still meaningful history for the thread even if
+    # the person who wrote it is gone (same reasoning as
+    # EngineeringChangeRequest.requested_by).
+    author_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    author: Mapped[User | None] = relationship()
+
+    body: Mapped[str] = mapped_column(Text, nullable=False)

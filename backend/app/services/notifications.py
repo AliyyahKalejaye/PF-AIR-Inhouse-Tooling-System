@@ -1,7 +1,7 @@
 """Notification-creation helpers, called from the route handlers that
 cause the events the notification feed covers (component out-of-stock /
 low-stock / deleted; project created / status-changed / deleted; ECR
-submitted / decided / implemented).
+submitted / decided / implemented / commented on).
 
 Most of this app has no per-user ownership or watcher model — no "my
 projects", no components assigned to a specific engineer — so there's no
@@ -26,9 +26,10 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.component import Component
-from app.models.ecr import ECRStatus, EngineeringChangeRequest
+from app.models.ecr import ECRComment, ECRStatus, EngineeringChangeRequest
 from app.models.notification import Notification, NotificationType
 from app.models.project import Project, ProjectStatus
+from app.models.user import User
 
 
 async def create_notification(
@@ -193,3 +194,39 @@ async def notify_ecr_implemented(db: AsyncSession, ecr: EngineeringChangeRequest
         message=f"{ecr.title} has been implemented.",
         link=f"/ecr/{ecr.id}",
     )
+
+
+async def notify_ecr_commented(
+    db: AsyncSession, ecr: EngineeringChangeRequest, comment: ECRComment, author: User
+) -> None:
+    """Not a broadcast — a comment thread is that request's business, same
+    reasoning as notify_ecr_decided. Notifies whichever of
+    {assigned_approver, requester} isn't the comment's own author, so this
+    doubles as the "reminder" mechanism for a request stuck awaiting a
+    decision: commenting nudges the tagged approver even if they've
+    stopped checking the page, and lets the requester see a reply without
+    having to poll it themselves."""
+    targets = {ecr.assigned_approver_id, ecr.requested_by} - {None, author.id}
+    if not targets:
+        return
+
+    # Title stays a fixed short string, same convention as every other
+    # notify_* helper here. The message interpolates three unbounded-ish
+    # fields (author.name up to 200 chars, ecr.title up to 300, the
+    # comment body) into a column capped at 500 — each is truncated with
+    # its own budget so the total can never overflow regardless of how
+    # long any one of them is.
+    def _clip(text: str, limit: int) -> str:
+        return text if len(text) <= limit else f"{text[: limit - 1]}…"
+
+    ecr_title = _clip(ecr.title, 80)
+    snippet = _clip(comment.body, 120)
+    for target_id in targets:
+        await create_notification(
+            db,
+            type=NotificationType.ecr_commented,
+            title="New comment on your change request",
+            message=f'{_clip(author.name, 80)} commented on "{ecr_title}": {snippet}',
+            link=f"/ecr/{ecr.id}",
+            target_user_id=target_id,
+        )

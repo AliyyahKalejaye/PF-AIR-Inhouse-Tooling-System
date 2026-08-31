@@ -60,6 +60,19 @@ export interface ECRDecision {
   review_notes?: string | null;
 }
 
+export interface ECRCommentCreate {
+  body: string;
+}
+
+export interface ECRComment {
+  id: string;
+  // Null only if the author's account was later deleted — the comment
+  // text is kept either way (see backend's ECRComment.author_id).
+  author: ECRUserRef | null;
+  body: string;
+  created_at: string;
+}
+
 export interface ECRRead {
   id: string;
   title: string;
@@ -135,4 +148,19 @@ export function implementEcr(token: string, id: string): Promise<ECRRead> {
 
 export function deleteEcr(token: string, id: string): Promise<void> {
   return apiDelete(`/api/v1/ecr/${id}`, token);
+}
+
+// The discussion trail under a request — open to anyone who can view the
+// request itself, with no status gate (a decided request can still be
+// discussed). See backend/app/models/ecr.py's ECRComment docstring.
+export function listEcrComments(token: string, ecrId: string): Promise<ECRComment[]> {
+  return apiGet<ECRComment[]>(`/api/v1/ecr/${ecrId}/comments`, token);
+}
+
+export function createEcrComment(
+  token: string,
+  ecrId: string,
+  payload: ECRCommentCreate,
+): Promise<ECRComment> {
+  return apiPost<ECRComment>(`/api/v1/ecr/${ecrId}/comments`, payload, token);
 }

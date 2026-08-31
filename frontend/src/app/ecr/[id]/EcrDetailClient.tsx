@@ -18,6 +18,11 @@
 //     UserRole.admin (rare in    -> Edit / Delete (see canManage below)
 //     practice — see the User
 //     model)
+//
+// The discussion trail (EcrComments) has no such gating — anyone who can
+// view the request can comment on it, at any status — and doubles as a
+// reminder mechanism: posting notifies whichever of {assigned_approver,
+// requester} isn't the comment's author.
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -27,6 +32,7 @@ import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
 import { NewEcrModal } from "@/components/ecr/NewEcrModal";
 import { DeleteEcrModal } from "@/components/ecr/DeleteEcrModal";
+import { EcrComments } from "@/components/ecr/EcrComments";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { approveEcr, ECRRead, getEcr, implementEcr, rejectEcr } from "@/lib/ecr";
@@ -349,6 +355,8 @@ function EcrDetailContent() {
                 </button>
               </div>
             )}
+
+            {token && <EcrComments token={token} ecrId={ecr.id} currentUserId={user?.id} />}
 
             {showEdit && token && (
               <NewEcrModal

@@ -19,6 +19,7 @@ class NotificationType(enum.StrEnum):
     ecr_approved = "ecr_approved"
     ecr_rejected = "ecr_rejected"
     ecr_implemented = "ecr_implemented"
+    ecr_commented = "ecr_commented"
 
 
 class Notification(UUIDPkMixin, TimestampMixin, Base):

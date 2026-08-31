@@ -82,10 +82,26 @@ class ECRUpdate(BaseModel):
 
 
 class ECRDecision(BaseModel):
-    """Payload for approving or rejecting a submitted ECR — admin-only, see
-    POST /ecr/{id}/approve and /ecr/{id}/reject in api/routes/ecr.py."""
+    """Payload for approving or rejecting a submitted ECR — restricted to
+    the request's tagged assigned_approver, see POST /ecr/{id}/approve and
+    /ecr/{id}/reject in api/routes/ecr.py."""
 
     review_notes: str | None = None
+
+
+class ECRCommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class ECRCommentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    # None only if the author's account was later deleted (SET NULL — see
+    # ECRComment.author_id) — the comment text itself is kept either way.
+    author: ECRUserRef | None
+    body: str
+    created_at: datetime
 
 
 class ECRRead(BaseModel):

@@ -37,12 +37,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col bg-slate-50">
       <div className="flex h-16 items-center px-4 sm:px-8">
         <Link href="/" className="flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[14px] font-extrabold text-white"
-            style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}
-          >
-            PF
-          </div>
+          <img src="/logo.png" alt="Proforce Airsystems" className="h-8 w-8 object-contain" />
           Proforce Tooling <span className="text-[13px] font-medium text-slate-400">/ Suite</span>
         </Link>
       </div>

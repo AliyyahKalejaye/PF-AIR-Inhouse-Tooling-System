@@ -46,12 +46,11 @@ export default function Landing() {
 
       <div className="relative z-10 flex h-[76px] items-center px-5 sm:px-11">
         <div className="flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight">
-          <div
-            className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] text-[14px] font-extrabold text-white shadow-[0_4px_12px_-2px_rgba(79,70,229,.4)]"
-            style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}
-          >
-            PF
-          </div>
+          <img
+            src="/logo.png"
+            alt="Proforce Airsystems"
+            className="h-[34px] w-[34px] object-contain drop-shadow-[0_4px_12px_rgba(79,70,229,.35)]"
+          />
           Proforce Tooling <span className="text-[13px] font-medium text-slate-400">/ Suite</span>
         </div>
       </div>

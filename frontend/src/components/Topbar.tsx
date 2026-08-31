@@ -230,13 +230,12 @@ export function Topbar({ toolName }: { toolName?: string }) {
   return (
     <div className="flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 md:gap-6 md:px-7">
       <Link href="/hub" className="flex shrink-0 items-center gap-2.5 text-[16px] font-extrabold tracking-tight">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[14px] font-extrabold text-white"
-          style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}
-        >
-          PF
-        </div>
-        {/* Full wordmark only where there's room to spare — the "PF" badge
+        <img
+          src="/logo.png"
+          alt="Proforce Airsystems"
+          className="h-8 w-8 shrink-0 object-contain"
+        />
+        {/* Full wordmark only where there's room to spare — the logo mark
             above is enough of a home-link affordance on narrow screens. */}
         <span className="hidden sm:inline">
           Proforce Tooling <span className="text-[13px] font-medium text-slate-400">/ Suite</span>

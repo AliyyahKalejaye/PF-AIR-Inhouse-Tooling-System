@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -12,6 +12,16 @@ from app.schemas.auth import MessageResponse
 from app.schemas.notification import NotificationListResponse, NotificationRead, UnreadCountResponse
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+def _visible_to(user_id: uuid.UUID):
+    """A notification is visible to a user if it's a broadcast
+    (target_user_id is null) or specifically targeted at them — see
+    app/models/notification.py's Notification.target_user_id docstring.
+    Every query below that lists/counts notifications filters through
+    this, so a targeted one (e.g. an ECR assigned to a specific admin)
+    never appears in anyone else's feed or unread count."""
+    return or_(Notification.target_user_id.is_(None), Notification.target_user_id == user_id)
 
 
 def _unread_subquery(user_id: uuid.UUID):
@@ -26,7 +36,7 @@ async def _unread_count(db: AsyncSession, user_id: uuid.UUID) -> int:
     count = await db.scalar(
         select(func.count())
         .select_from(Notification)
-        .where(Notification.id.notin_(_unread_subquery(user_id)))
+        .where(_visible_to(user_id), Notification.id.notin_(_unread_subquery(user_id)))
     )
     return count or 0
 
@@ -39,8 +49,8 @@ async def list_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> NotificationListResponse:
-    base_query = select(Notification)
-    count_query = select(func.count()).select_from(Notification)
+    base_query = select(Notification).where(_visible_to(current_user.id))
+    count_query = select(func.count()).select_from(Notification).where(_visible_to(current_user.id))
     if unread_only:
         base_query = base_query.where(Notification.id.notin_(_unread_subquery(current_user.id)))
         count_query = count_query.where(
@@ -99,7 +109,8 @@ async def mark_all_read(
     unread_ids = (
         await db.execute(
             select(Notification.id).where(
-                Notification.id.notin_(_unread_subquery(current_user.id))
+                _visible_to(current_user.id),
+                Notification.id.notin_(_unread_subquery(current_user.id)),
             )
         )
     ).scalars().all()
@@ -119,7 +130,11 @@ async def mark_read(
     current_user: User = Depends(get_current_user),
 ) -> MessageResponse:
     notification = await db.get(Notification, notification_id)
-    if notification is None:
+    if notification is None or (
+        notification.target_user_id is not None and notification.target_user_id != current_user.id
+    ):
+        # Same 404 for "doesn't exist" and "exists but is targeted at
+        # someone else" — no reason to let a user distinguish the two.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found.")
 
     existing = await db.scalar(

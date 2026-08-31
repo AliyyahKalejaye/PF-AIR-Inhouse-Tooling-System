@@ -24,11 +24,19 @@ class NotificationType(enum.StrEnum):
 class Notification(UUIDPkMixin, TimestampMixin, Base):
     """A single event in the shared notification feed.
 
-    The app has no per-user ownership model (no "my projects", no assigned
-    components — see app/services/notifications.py's module docstring), so
-    every notification broadcasts to every user. Per-user read/unread
-    state is tracked separately in NotificationReceipt rather than as a
-    column here, since one notification has many readers.
+    Most of the app still has no per-user ownership model (no "my
+    projects", no assigned components — see
+    app/services/notifications.py's module docstring), so most
+    notifications broadcast to every user with `target_user_id` null.
+    ECR assignment (Phase 12) is the first feature with a real per-user
+    target — "notify the person assigned to review this" — so
+    `target_user_id` exists to carry that without turning the whole feed
+    into a per-user inbox: a targeted notification is only visible to that
+    one user (see the `_visible_to` filter in
+    app/api/routes/notifications.py), everything else stays broadcast.
+    Per-user read/unread state is still tracked separately in
+    NotificationReceipt, since even a targeted notification could in
+    principle gain more than one reader later.
     """
 
     __tablename__ = "notifications"
@@ -43,6 +51,11 @@ class Notification(UUIDPkMixin, TimestampMixin, Base):
     # "/projects/{id}". Null for events about a row that's already gone
     # (e.g. a deleted project has nowhere left to link to).
     link: Mapped[str | None] = mapped_column(String(500))
+    # Null = broadcast to everyone (the original/default behavior). Set =
+    # visible only to that one user. See class docstring.
+    target_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
 
     receipts: Mapped[list["NotificationReceipt"]] = relationship(
         back_populates="notification", cascade="all, delete-orphan"

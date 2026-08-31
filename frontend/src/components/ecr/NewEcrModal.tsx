@@ -3,44 +3,74 @@
 // Submit a new Engineering Change Request — same modal shape as
 // ComponentModal.tsx (Inventory's Add/Edit form): a fixed-position overlay
 // with a scrollable body and a sticky footer, `field`/`btn-primary`/
-// `btn-secondary` classes from globals.css. Project and component are both
-// optional single-select pickers rather than a search-as-you-type
-// component (like MilPickerModal's), since an ECR only ever needs to
-// reference one row of each, not build up a list.
+// `btn-secondary` classes from globals.css. Project, component, and
+// approver are all single-select pickers rather than search-as-you-type
+// (like MilPickerModal's), since an ECR only ever needs to reference one
+// row of each, not build up a list.
+//
+// Doubles as the edit modal (same ComponentModal pattern as its own
+// isEdit): pass `editing` with the current ECRRead to pre-fill every field
+// and call updateEcr instead of createEcr on submit. The caller is
+// responsible for only rendering this in edit mode when the viewer is
+// actually allowed to edit (admin, or the requester while still
+// submitted) — this component doesn't re-check that itself, matching how
+// DeleteProjectModal etc. trust their caller's gating.
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { createEcr, ECRRead } from "@/lib/ecr";
+import { createEcr, ECRPriority, ECRRead, ECRUserRef, listApprovers, updateEcr } from "@/lib/ecr";
 import { listProjects, ProjectListItem } from "@/lib/projects";
 import { Component, listComponents } from "@/lib/inventory";
 
 interface Props {
   token: string;
+  editing?: ECRRead | null;
   onClose: () => void;
   onCreated: (ecr: ECRRead) => void;
 }
 
-export function NewEcrModal({ token, onClose, onCreated }: Props) {
-  const [title, setTitle] = useState("");
-  const [reason, setReason] = useState("");
-  const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState<string>("");
-  const [componentId, setComponentId] = useState<string>("");
+const PRIORITY_OPTIONS: { value: ECRPriority; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
+
+export function NewEcrModal({ token, editing, onClose, onCreated }: Props) {
+  const isEdit = !!editing;
+
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [reason, setReason] = useState(editing?.reason ?? "");
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [priority, setPriority] = useState<ECRPriority>(editing?.priority ?? "medium");
+  const [projectId, setProjectId] = useState<string>(editing?.project?.id ?? "");
+  const [componentId, setComponentId] = useState<string>(editing?.component?.id ?? "");
+  // Freeform fallback for a part that isn't in the Inventory catalog yet
+  // — mutually exclusive with componentId (picking one clears the other,
+  // see the two onChange handlers below), so it's never ambiguous which
+  // one the request is actually "about."
+  const [componentName, setComponentName] = useState(editing?.component_name ?? "");
+  const [assignedApproverId, setAssignedApproverId] = useState<string>(
+    editing?.assigned_approver?.id ?? "",
+  );
 
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [components, setComponents] = useState<Component[]>([]);
+  const [approvers, setApprovers] = useState<ECRUserRef[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     listProjects(token).then(setProjects).catch(() => setProjects([]));
-    // A single page of up to 500 is plenty for a picker dropdown — the
-    // component catalog isn't large enough yet to need search-as-you-type
-    // here (Inventory's own list page does full pagination + search for
-    // the cases where that matters).
-    listComponents(token, { limit: 500 })
+    // 200 is the backend's max page size (see ListComponentsParams.limit
+    // in app/api/routes/components.py) — asking for more 422s the whole
+    // request, which silently left this dropdown empty before (the
+    // failure was swallowed by the .catch below). Plenty for a picker at
+    // the catalog's current size either way.
+    listComponents(token, { limit: 200 })
       .then((res) => setComponents(res.items))
       .catch(() => setComponents([]));
+    listApprovers(token).then(setApprovers).catch(() => setApprovers([]));
   }, [token]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,13 +88,17 @@ export function NewEcrModal({ token, onClose, onCreated }: Props) {
 
     setSubmitting(true);
     try {
-      const ecr = await createEcr(token, {
+      const payload = {
         title: title.trim(),
         reason: reason.trim(),
         description: description.trim() || null,
+        priority,
         project_id: projectId || null,
         component_id: componentId || null,
-      });
+        component_name: componentId ? null : componentName.trim() || null,
+        assigned_approver_id: assignedApproverId || null,
+      };
+      const ecr = isEdit && editing ? await updateEcr(token, editing.id, payload) : await createEcr(token, payload);
       onCreated(ecr);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -78,9 +112,13 @@ export function NewEcrModal({ token, onClose, onCreated }: Props) {
       <div className="flex w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_60px_-12px_rgba(15,23,42,.35)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
-            <h2 className="text-[18px] font-extrabold tracking-tight">New Change Request</h2>
+            <h2 className="text-[18px] font-extrabold tracking-tight">
+              {isEdit ? "Edit Change Request" : "New Change Request"}
+            </h2>
             <p className="mt-0.5 text-[12.5px] font-medium text-slate-500">
-              Submitted for review — an admin approves or rejects it before anything changes.
+              {isEdit
+                ? "Still awaiting review — changes here don't restart the approval process."
+                : "Submitted for review — an admin approves or rejects it before anything changes."}
             </p>
           </div>
           <button
@@ -103,17 +141,33 @@ export function NewEcrModal({ token, onClose, onCreated }: Props) {
               </div>
             )}
 
-            <div className="field">
-              <label htmlFor="ecr-title">Title</label>
-              <input
-                id="ecr-title"
-                type="text"
-                placeholder="e.g. Swap ESC to a higher-current-rated part"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                maxLength={300}
-              />
+            <div className="mb-4 flex flex-col gap-3.5 sm:flex-row">
+              <div className="field mb-0 flex-1">
+                <label htmlFor="ecr-title">Title</label>
+                <input
+                  id="ecr-title"
+                  type="text"
+                  placeholder="e.g. Swap ESC to a higher-current-rated part"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  maxLength={300}
+                />
+              </div>
+              <div className="field mb-0 sm:w-[150px]">
+                <label htmlFor="ecr-priority">Priority</label>
+                <select
+                  id="ecr-priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as ECRPriority)}
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mb-4 flex flex-col gap-3.5 sm:flex-row">
@@ -133,21 +187,56 @@ export function NewEcrModal({ token, onClose, onCreated }: Props) {
                 </select>
               </div>
               <div className="field flex-1">
-                <label htmlFor="ecr-component">Related component (optional)</label>
+                <label htmlFor="ecr-approver">Assign to (optional)</label>
                 <select
-                  id="ecr-component"
-                  value={componentId}
-                  onChange={(e) => setComponentId(e.target.value)}
+                  id="ecr-approver"
+                  value={assignedApproverId}
+                  onChange={(e) => setAssignedApproverId(e.target.value)}
                 >
-                  <option value="">None</option>
-                  {components.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.sku ? ` (${c.sku})` : ""}
+                  <option value="">Any admin</option>
+                  {approvers.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
                     </option>
                   ))}
                 </select>
+                <div className="hint">They&apos;ll get notified this needs their review.</div>
               </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="ecr-component">Related component (optional)</label>
+              <select
+                id="ecr-component"
+                value={componentId}
+                onChange={(e) => {
+                  setComponentId(e.target.value);
+                  if (e.target.value) setComponentName("");
+                }}
+              >
+                <option value="">None</option>
+                {components.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.sku ? ` (${c.sku})` : ""}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-2 flex items-center gap-2 text-[11.5px] font-semibold text-slate-400">
+                <span className="h-px flex-1 bg-slate-200" />
+                or
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <input
+                id="ecr-component-name"
+                type="text"
+                className="mt-2"
+                placeholder="Not in Inventory yet? Type a part name/description"
+                value={componentName}
+                disabled={!!componentId}
+                onChange={(e) => setComponentName(e.target.value)}
+                maxLength={300}
+              />
             </div>
 
             <div className="field">
@@ -181,7 +270,7 @@ export function NewEcrModal({ token, onClose, onCreated }: Props) {
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? "Submitting…" : "Submit for review"}
+              {submitting ? "Saving…" : isEdit ? "Save changes" : "Submit for review"}
             </button>
           </div>
         </form>

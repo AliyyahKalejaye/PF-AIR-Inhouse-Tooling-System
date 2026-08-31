@@ -4,16 +4,17 @@
 // — same static-export reasoning as ProjectDetailClient.tsx (see that
 // file's comment, and app/ecr/[id]/page.tsx's).
 //
-// Actions shown depend on both `ecr.status` and the signed-in user's role
-// (from useAuth(), mirroring backend/app/api/deps.py's require_admin —
-// this is a UI convenience, not the real gate: the backend rejects
-// approve/reject from a non-admin regardless of what buttons this page
-// happens to render):
-//   - submitted + admin  -> Approve / Reject (with an optional note)
-//   - approved  + anyone -> Mark Implemented (closes the loop once the
-//                           real-world change has actually been made)
-//   - submitted + admin  -> Delete (withdraw a request that shouldn't
-//                           have been filed)
+// Actions shown depend on both `ecr.status` and the signed-in user (from
+// useAuth(), mirroring backend/app/api/deps.py's require_admin and
+// api/routes/ecr.py's own checks — this is a UI convenience, not the real
+// gate: the backend rejects anything this page happens to render a button
+// for regardless):
+//   - submitted + admin        -> Approve / Reject (with an optional note)
+//   - approved  + anyone       -> Mark Implemented (closes the loop once
+//                                 the real-world change has actually been
+//                                 made)
+//   - admin (any status), or
+//     requester while submitted -> Edit / Delete (see canManage below)
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -21,10 +22,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Topbar } from "@/components/Topbar";
 import { FootNav } from "@/components/FootNav";
+import { NewEcrModal } from "@/components/ecr/NewEcrModal";
+import { DeleteEcrModal } from "@/components/ecr/DeleteEcrModal";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
-import { approveEcr, deleteEcr, ECRRead, getEcr, implementEcr, rejectEcr } from "@/lib/ecr";
+import { approveEcr, ECRRead, getEcr, implementEcr, rejectEcr } from "@/lib/ecr";
 import { ecrStatusStyle, SUBMITTED_TEXT_COLOR } from "@/lib/ecr-status";
+import { ecrPriorityStyle } from "@/lib/ecr-priority";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
@@ -50,7 +54,8 @@ function EcrDetailContent() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const fetchEcr = useCallback(() => {
     if (!token || !ecrId) return;
@@ -100,20 +105,9 @@ function EcrDetailContent() {
     }
   }
 
-  async function handleDelete() {
-    if (!token || !ecr) return;
-    setBusy(true);
-    setActionError(null);
-    try {
-      await deleteEcr(token, ecr.id);
-      router.push("/ecr");
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
-      setBusy(false);
-    }
-  }
-
   const isAdmin = user?.role === "admin";
+  const isOwner = !!user && !!ecr && user.id === ecr.requester?.id;
+  const canManage = !!ecr && (isAdmin || (isOwner && ecr.status === "submitted"));
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -142,12 +136,21 @@ function EcrDetailContent() {
                 <h1 className="text-[20px] font-extrabold leading-tight tracking-tight sm:text-[22px]">
                   {ecr.title}
                 </h1>
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold ${ecrStatusStyle(ecr.status).pill}`}
-                  style={ecr.status === "submitted" ? { color: SUBMITTED_TEXT_COLOR } : undefined}
-                >
-                  {ecrStatusStyle(ecr.status).label}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {ecr.priority !== "medium" && (
+                    <span
+                      className={`rounded-full px-3 py-1 text-[12px] font-bold ${ecrPriorityStyle(ecr.priority).pill}`}
+                    >
+                      {ecrPriorityStyle(ecr.priority).label}
+                    </span>
+                  )}
+                  <span
+                    className={`rounded-full px-3 py-1 text-[12px] font-bold ${ecrStatusStyle(ecr.status).pill}`}
+                    style={ecr.status === "submitted" ? { color: SUBMITTED_TEXT_COLOR } : undefined}
+                  >
+                    {ecrStatusStyle(ecr.status).label}
+                  </span>
+                </div>
               </div>
 
               <div className="mb-5 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px] text-slate-500">
@@ -162,12 +165,25 @@ function EcrDetailContent() {
                     </Link>
                   </>
                 )}
-                {ecr.component && (
+                {ecr.component ? (
                   <>
                     <span>·</span>
                     <Link href="/inventory" className="font-semibold text-indigo-600">
                       Component: {ecr.component.name}
                     </Link>
+                  </>
+                ) : (
+                  ecr.component_name && (
+                    <>
+                      <span>·</span>
+                      <span>Component: {ecr.component_name} (not yet in Inventory)</span>
+                    </>
+                  )
+                )}
+                {ecr.assigned_approver && (
+                  <>
+                    <span>·</span>
+                    <span>Assigned to {ecr.assigned_approver.name}</span>
                   </>
                 )}
               </div>
@@ -200,6 +216,28 @@ function EcrDetailContent() {
                       {ecr.review_notes}
                     </p>
                   )}
+                </div>
+              )}
+
+              {canManage && (
+                <div className="mt-5 flex gap-2.5 border-t border-slate-100 pt-4">
+                  <button type="button" onClick={() => setShowEdit(true)} className="btn-secondary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                      <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z" />
+                    </svg>
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDelete(true)}
+                    className="btn-secondary !text-rose-600"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+                    </svg>
+                    {isAdmin && ecr.status !== "submitted" ? "Delete" : "Withdraw"}
+                  </button>
                 </div>
               )}
             </div>
@@ -278,13 +316,6 @@ function EcrDetailContent() {
                     >
                       Reject
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirm(true)}
-                      className="ml-auto text-[13px] font-semibold text-rose-500 hover:text-rose-600"
-                    >
-                      Delete request
-                    </button>
                   </div>
                 )}
               </div>
@@ -301,28 +332,25 @@ function EcrDetailContent() {
               </div>
             )}
 
-            {deleteConfirm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-4">
-                <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-[0_30px_60px_-12px_rgba(15,23,42,.35)]">
-                  <h3 className="text-[16px] font-extrabold">Delete this change request?</h3>
-                  <p className="mt-1.5 text-[13.5px] text-slate-500">
-                    &ldquo;{ecr.title}&rdquo; will be permanently removed. This can&apos;t be undone.
-                  </p>
-                  <div className="mt-5 flex justify-end gap-2.5">
-                    <button type="button" onClick={() => setDeleteConfirm(false)} className="btn-secondary">
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete()}
-                      disabled={busy}
-                      className="btn-primary !bg-rose-600 !shadow-none disabled:opacity-60"
-                    >
-                      {busy ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {showEdit && token && (
+              <NewEcrModal
+                token={token}
+                editing={ecr}
+                onClose={() => setShowEdit(false)}
+                onCreated={(updated) => {
+                  setShowEdit(false);
+                  setEcr(updated);
+                }}
+              />
+            )}
+
+            {showDelete && token && (
+              <DeleteEcrModal
+                token={token}
+                ecr={ecr}
+                onCancel={() => setShowDelete(false)}
+                onDeleted={() => router.push("/ecr")}
+              />
             )}
           </>
         )}

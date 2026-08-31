@@ -137,15 +137,17 @@ async def notify_ecr_decided(db: AsyncSession, ecr: EngineeringChangeRequest) ->
     same edge-triggered shape as notify_project_status_changed, just
     without an old-status check since approve/reject routes only ever
     move a submitted ECR forward, never re-fire on an already-decided one."""
-    if ecr.status == ECRStatus.approved:
-        title, verb = "Change request approved", "approved"
-    elif ecr.status == ECRStatus.rejected:
-        title, verb = "Change request rejected", "rejected"
-    else:
+    decisions = {
+        ECRStatus.approved: (NotificationType.ecr_approved, "Change request approved", "approved"),
+        ECRStatus.rejected: (NotificationType.ecr_rejected, "Change request rejected", "rejected"),
+    }
+    decision = decisions.get(ecr.status)
+    if decision is None:
         return
+    notification_type, title, verb = decision
     await create_notification(
         db,
-        type=NotificationType.ecr_approved if ecr.status == ECRStatus.approved else NotificationType.ecr_rejected,
+        type=notification_type,
         title=title,
         message=f"{ecr.title} was {verb}.",
         link=f"/ecr/{ecr.id}",

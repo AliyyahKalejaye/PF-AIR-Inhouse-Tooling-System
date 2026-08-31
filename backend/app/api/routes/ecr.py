@@ -12,7 +12,11 @@ from app.models.ecr import ECRStatus, EngineeringChangeRequest
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.ecr import ECRCreate, ECRDecision, ECRListItem, ECRRead
-from app.services.notifications import notify_ecr_decided, notify_ecr_implemented, notify_ecr_submitted
+from app.services.notifications import (
+    notify_ecr_decided,
+    notify_ecr_implemented,
+    notify_ecr_submitted,
+)
 
 router = APIRouter(prefix="/ecr", tags=["engineering-change-requests"])
 

@@ -150,7 +150,7 @@ function NotificationBell({ token }: { token: string }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
             <span className="text-[13px] font-extrabold text-slate-900">Notifications</span>
             {items.some((n) => !n.is_read) && (
@@ -295,7 +295,7 @@ export function Topbar({ toolName }: { toolName?: string }) {
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-12 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+          <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
             <div className="border-b border-slate-100 px-3 py-2.5">
               <div className="truncate text-[13px] font-bold text-slate-900">{user?.name}</div>
               <div className="truncate text-[12px] text-slate-500">{user?.email}</div>

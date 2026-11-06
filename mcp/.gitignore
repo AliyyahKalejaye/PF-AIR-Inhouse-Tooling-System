@@ -1,0 +1,14 @@
+# Real credentials — never commit, only .env.example.
+.env
+
+# Tool-call audit log.
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.egg-info/

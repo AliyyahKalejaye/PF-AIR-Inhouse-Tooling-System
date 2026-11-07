@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "pfair-tooling",
   "display_name": "PF-AIR Tooling",
-  "version": "0.1.1",
-  "description": "Query Proforce Airsystems' in-house engineering tooling (PF-AIR): component inventory and stock levels, BOM checks, project/MIL shortfalls, and Engineering Change Requests. Read-only (Phase 1).",
+  "version": "0.2.0",
+  "description": "Query and act on Proforce Airsystems' in-house engineering tooling (PF-AIR): component inventory and stock levels, BOM checks and reservations, project/MIL shortfalls, and Engineering Change Requests. Writes always go through a preview and a single-use confirmation code.",
   "author": {
     "name": "Proforce Airsystems Limited"
   },
@@ -23,7 +23,8 @@
         "PFAIR_API_PREFIX": "/api/v1",
         "PFAIR_SERVICE_EMAIL": "${user_config.service_email}",
         "PFAIR_SERVICE_PASSWORD": "${user_config.service_password}",
-        "PFAIR_LOG_FILE": "${__dirname}/logs/tool_calls.log"
+        "PFAIR_LOG_FILE": "${__dirname}/logs/tool_calls.log",
+        "PFAIR_OPERATOR_NAME": "${user_config.operator_name}"
       }
     }
   },
@@ -46,6 +47,12 @@
       "title": "Service account password",
       "description": "Password for the service account above.",
       "sensitive": true,
+      "required": true
+    },
+    "operator_name": {
+      "type": "string",
+      "title": "Your name",
+      "description": "Written into change requests as 'Submitted via Claude on behalf of <name>', since everything is done as the shared service account. Write tools stay off until this is set.",
       "required": true
     }
   },

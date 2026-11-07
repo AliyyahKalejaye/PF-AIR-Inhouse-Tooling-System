@@ -15,6 +15,7 @@ from mcp.server.mcpserver import MCPServer
 
 from pfair_mcp.client import get_client
 from pfair_mcp.logging_setup import run_logged
+from pfair_mcp.tools._format import READ_ONLY
 
 
 async def _list_projects(status: str | None, title_contains: str | None) -> str:
@@ -100,10 +101,8 @@ async def _check_project_shortfall(project_id: str) -> str:
 
 
 def register(mcp: MCPServer) -> None:
-    @mcp.tool()
-    async def list_projects(
-        status: str | None = None, title_contains: str | None = None
-    ) -> str:
+    @mcp.tool(annotations=READ_ONLY)
+    async def list_projects(status: str | None = None, title_contains: str | None = None) -> str:
         """List PF-AIR engineering projects, optionally filtered by status
         and/or a title search term. Use this to find a project's id before
         calling get_project or check_project_shortfall.
@@ -120,7 +119,7 @@ def register(mcp: MCPServer) -> None:
             lambda: _list_projects(status, title_contains),
         )
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_project(project_id: str) -> str:
         """Get a project's full detail: write-up, status, and its MIL
         (Minimum Item List) — the real components it needs and the
@@ -133,7 +132,7 @@ def register(mcp: MCPServer) -> None:
             "get_project", {"project_id": project_id}, lambda: _get_project(project_id)
         )
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def check_project_shortfall(project_id: str) -> str:
         """Check a project's MIL (Minimum Item List) against current
         inventory and report which required parts are short and by how

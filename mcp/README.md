@@ -1,4 +1,4 @@
-# PF-AIR MCP Server (Phase 1 — local, read-only)
+# PF-AIR MCP Server (Phase 2 — local, read + guarded writes)
 
 An MCP (Model Context Protocol) server that lets an AI client (Claude
 Desktop) query real PF-AIR data — component stock, project/MIL status,
@@ -10,12 +10,12 @@ other client.
 This is a separate service from `backend/` — nothing there was touched to
 build this.
 
-**Phase 1 is read-only.** All 8 tools below are `GET`-style lookups (plus
-one spreadsheet-check POST). Nothing here creates, edits, approves,
-rejects, or deletes anything in PF-AIR. Write tools (`reserve_bom`,
-`draft_ecr`) with preview-then-confirm guardrails are planned for Phase 2;
-approve/reject/implement on ECRs stay human-only and will never be
-exposed as a tool.
+**Phase 1** added 8 read tools. **Phase 2** adds two write actions —
+reserving a checked BOM's stock and submitting an Engineering Change
+Request — each split into a preview tool and a confirm tool (see
+[Write tools](#write-tools-phase-2) below). Approving, rejecting,
+implementing, editing and deleting ECRs stay human-only in the web app and
+are not exposed as tools.
 
 ## Tools
 
@@ -29,6 +29,10 @@ exposed as a tool.
 | `check_project_shortfall` | `GET /projects/{id}` | **What's short for a given project's build**, computed from its MIL vs. current stock. |
 | `list_ecrs` | `GET /ecr` | List Engineering Change Requests, optionally by status. |
 | `get_ecr` | `GET /ecr/{id}`, `GET /ecr/{id}/comments` | Full ECR detail including its discussion thread. |
+| `preview_bom_reservation` | `GET /components/{id}` | Phase 2. What reserving a checked BOM would deduct, with live stock. Changes nothing; returns a confirmation code. |
+| `reserve_bom` | `POST /bom/{id}/reserve` | Phase 2. **Deducts stock, no undo.** Takes only the code from the preview. |
+| `preview_ecr` | `GET /projects/{id}`, `GET /components/{id}`, `GET /ecr/approvers` | Phase 2. Validates and shows a new change request and who'd be notified. Changes nothing; returns a code. |
+| `submit_ecr` | `POST /ecr` | Phase 2. **Creates the request and notifies people.** Takes only the code from the preview. |
 
 **`check_bom` vs. `check_project_shortfall`** — these answer different
 questions and it's easy to reach for the wrong one. PF-AIR has no concept
@@ -43,6 +47,69 @@ required. So:
   to get its id, then `check_project_shortfall(project_id=...)`.
 - "I have this BOM spreadsheet, what's missing?" → `check_bom(...)` with
   the file's bytes.
+
+## Write tools (Phase 2)
+
+Both write actions work the same way:
+
+1. A **preview** tool works out exactly what would happen and returns a
+   single-use confirmation code (e.g. `ECR-3F9A1C`), valid for 10 minutes.
+2. The **write** tool takes *only* that code — not the details again — so
+   it can only ever do exactly what was previewed.
+
+The code proves a preview happened; it doesn't prove a person read it,
+since the same AI that ran the preview could pass the code straight back.
+**The real checkpoint is Claude Desktop's tool permissions**: in the
+extension's settings, set `reserve_bom` and `submit_ecr` to ask for
+approval every time (they're annotated as write tools, `reserve_bom` as
+destructive, which clients use to decide what to ask about — but check
+the setting rather than assuming). Codes live in memory only, so
+restarting the server or reinstalling the extension cancels any that are
+outstanding.
+
+**Who it's recorded as.** Everything is done as the shared service
+account, so PF-AIR's "requester" field shows that account. To record who
+actually asked, each install sets an operator name (`PFAIR_OPERATOR_NAME`,
+or "Your name" in the extension's install form): change requests get
+"Submitted via Claude on behalf of <name>" appended to their description,
+and every write is logged with the operator and its result. The write
+tools refuse to run while no operator name is set. One consequence of the
+shared account: a request submitted this way can't be edited or withdrawn
+by the person who asked from their own web-app login (only the requester
+or an admin can) — ask an admin, or submit from the web app instead if
+you'll want to edit it.
+
+### Reserving a BOM
+
+`POST /bom/{id}/reserve` deducts every line that was "available" when the
+BOM was checked, skips the rest, and can't be repeated (409) or undone. Two
+things shape the tools around it:
+
+- **PF-AIR can't read a checked BOM back** (there's no `GET /bom/{id}`), so
+  only BOMs checked with `check_bom` since the server last started can be
+  previewed. Otherwise the preview asks for `check_bom` to be re-run (which
+  creates a new BOM id) or for the reservation to be done in the web app.
+- **The backend trusts the status saved at check time.** If stock has
+  dropped since, it still deducts and floors the quantity at 0 instead of
+  skipping. So the preview re-reads live stock and won't issue a code if
+  any part is now below what's needed, and `reserve_bom` checks again
+  just before writing and refuses if anything moved since the preview.
+
+### Submitting a change request
+
+PF-AIR has **no draft state**: `POST /ecr` creates a live request with
+status `submitted` and immediately notifies the tagged approver — or
+everyone, if nobody is tagged. The preview spells out which. Untagged
+requests can't be approved or rejected by anyone until someone tags an
+approver in the web app.
+
+- The approver is looked up by email (exact) or name (exact, then
+  partial); an ambiguous name lists the matches instead of guessing.
+- The service account itself can't be tagged as approver — only the
+  tagged approver can approve or reject, and that should be a person.
+- If both `component_id` and `component_name` are given, the free-text
+  name is dropped (PF-AIR keeps the real inventory part), and the preview
+  says so.
 
 ## Setup
 
@@ -109,6 +176,7 @@ PFAIR_BASE_URL=https://proforce-tooling-api.onrender.com
 PFAIR_API_PREFIX=/api/v1
 PFAIR_SERVICE_EMAIL=mcp-service@proforcedefence.com
 PFAIR_SERVICE_PASSWORD=choose-a-strong-password-here
+PFAIR_OPERATOR_NAME=Your Name
 PFAIR_LOG_FILE=./logs/tool_calls.log
 ```
 
@@ -127,8 +195,13 @@ The [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector)
 lets you call tools by hand and see raw results, without Claude Desktop:
 
 ```bash
-uv run --with "mcp[cli]" mcp dev src/pfair_mcp/server.py
+npx @modelcontextprotocol/inspector uv run pfair-mcp
 ```
+
+(Not `mcp dev src/pfair_mcp/server.py` — that launches the file with a
+separate copy of `mcp` that can't import the `pfair_mcp` package, and the
+Inspector just shows "Connection closed". `uv run pfair-mcp` starts the
+server from this project's own environment, the same way the extension does.)
 
 This opens a local web UI where you can pick a tool (e.g.
 `check_project_shortfall`), fill in its arguments, and run it against
@@ -156,9 +229,9 @@ mcpb pack . pfair-tooling.mcpb
 ```
 
 Then drag `pfair-tooling.mcpb` into that drop zone in Claude Desktop. It'll
-prompt you for three fields at install time — **PF-AIR backend URL**
-(defaults to the Render URL), **service account email**, and **service
-account password** — instead of you editing `.env` or any config file by
+prompt you for four fields at install time — **PF-AIR backend URL**
+(defaults to the Render URL), **service account email**, **service
+account password**, and **your name** (see [Write tools](#write-tools-phase-2)) — instead of you editing `.env` or any config file by
 hand. Those values get passed to the server as environment variables at
 launch, the same `PFAIR_*` variables `config.py` already reads, so nothing
 about the server code itself changes based on how it was installed.
@@ -223,7 +296,9 @@ than anything wrong with your data — see the note on the two tools above.
 Every tool call writes one JSON line to `PFAIR_LOG_FILE` (`./logs/`
 relative to `mcp/` by default, gitignored): tool name, inputs (long values
 like `check_bom`'s file content are truncated), success/failure, and
-duration in milliseconds. Example line:
+duration in milliseconds. Write tools (`reserve_bom`, `submit_ecr`) also
+log the operator name and the result — what was deducted, or the new
+request's id. Example line:
 
 ```json
 {"timestamp": "2026-11-06T10:00:00+00:00", "tool": "check_project_shortfall", "inputs": {"project_id": "..."}, "success": true, "duration_ms": 42.3}

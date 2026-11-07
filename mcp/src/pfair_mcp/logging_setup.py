@@ -63,8 +63,14 @@ def _safe_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     return safe
 
 
-def _write_record(tool_name: str, inputs: dict[str, Any], success: bool, duration_ms: float,
-                   error: str | None) -> None:
+def _write_record(
+    tool_name: str,
+    inputs: dict[str, Any],
+    success: bool,
+    duration_ms: float,
+    error: str | None,
+    result: str | None = None,
+) -> None:
     record: dict[str, Any] = {
         "timestamp": datetime.now(UTC).isoformat(),
         "tool": tool_name,
@@ -74,6 +80,8 @@ def _write_record(tool_name: str, inputs: dict[str, Any], success: bool, duratio
     }
     if error is not None:
         record["error"] = error
+    if result is not None:
+        record["result"] = result[:1000]
     _logger.info(json.dumps(record))
 
 
@@ -81,6 +89,8 @@ async def run_logged(
     tool_name: str,
     inputs: dict[str, Any],
     body: Callable[[], Awaitable[str]],
+    *,
+    log_result: bool = False,
 ) -> str:
     """Every tool function's implementation is a zero-arg async callable
     passed in as `body` (usually a small closure). This runs it, times it,
@@ -89,6 +99,10 @@ async def run_logged(
 
     - PFAirConnectionError: the PF-AIR API couldn't be reached at all.
     - PFAirAPIError: PF-AIR responded with an error (404, 403, 422, 5xx).
+
+    Write tools pass log_result=True so the log also records what actually
+    happened (the created ECR's id, what was deducted) — not just that the
+    call succeeded. Read tools don't, to keep their log lines small.
 
     Any other exception is a bug in this server, not an expected failure
     mode — it's logged the same way but re-raised, since swallowing it
@@ -118,5 +132,12 @@ async def run_logged(
         raise
     else:
         duration_ms = round((time.monotonic() - start) * 1000, 1)
-        _write_record(tool_name, inputs, success=True, duration_ms=duration_ms, error=None)
+        _write_record(
+            tool_name,
+            inputs,
+            success=True,
+            duration_ms=duration_ms,
+            error=None,
+            result=result if log_result else None,
+        )
         return result

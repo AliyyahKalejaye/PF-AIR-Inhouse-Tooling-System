@@ -13,6 +13,8 @@ import pytest
 
 import pfair_mcp.client as client_module
 import pfair_mcp.config as config_module
+import pfair_mcp.tools.bom as bom_module
+from pfair_mcp import confirmations
 
 API_BASE = "http://pfair.test/api/v1"
 
@@ -26,12 +28,17 @@ def pfair_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
     monkeypatch.setenv("PFAIR_API_PREFIX", "/api/v1")
     monkeypatch.setenv("PFAIR_SERVICE_EMAIL", "mcp-service@proforcedefence.com")
     monkeypatch.setenv("PFAIR_SERVICE_PASSWORD", "test-password")
+    monkeypatch.setenv("PFAIR_OPERATOR_NAME", "Test Operator")
     monkeypatch.setenv("PFAIR_LOG_FILE", str(tmp_path / "tool_calls.log"))
     config_module.get_settings.cache_clear()
     client_module._client = None
+    confirmations.reset()
+    bom_module._checked_boms.clear()
     yield
     config_module.get_settings.cache_clear()
     client_module._client = None
+    confirmations.reset()
+    bom_module._checked_boms.clear()
 
 
 @pytest.fixture

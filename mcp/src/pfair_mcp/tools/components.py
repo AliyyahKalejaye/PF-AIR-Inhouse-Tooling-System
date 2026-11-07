@@ -7,7 +7,7 @@ from mcp.server.mcpserver import MCPServer
 
 from pfair_mcp.client import get_client
 from pfair_mcp.logging_setup import run_logged
-from pfair_mcp.tools._format import component_line
+from pfair_mcp.tools._format import READ_ONLY, component_line
 
 
 async def _resolve_category_id(query: str) -> str | None:
@@ -87,7 +87,7 @@ async def _get_component(component_id: str) -> str:
 
 
 def register(mcp: MCPServer) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def search_components(
         query: str | None = None,
         category: str | None = None,
@@ -115,7 +115,7 @@ def register(mcp: MCPServer) -> None:
             lambda: _search_components(query, category, stock, limit),
         )
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_component(component_id: str) -> str:
         """Get full details for one inventory component by its id,
         including stock level, SKU, brand, category, and description.

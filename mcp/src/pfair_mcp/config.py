@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     service_email: str = ""
     service_password: str = ""
 
+    # The person using this server, written into anything it creates in
+    # PF-AIR ("Submitted via Claude on behalf of <name>"). Everything is
+    # done as the shared service account, so without this nothing would
+    # record who actually asked. Write tools refuse to run while it's blank.
+    operator_name: str = ""
+
     log_file: str = "./logs/tool_calls.log"
 
     # Per-request timeout to the PF-AIR API. Generous but not unbounded —

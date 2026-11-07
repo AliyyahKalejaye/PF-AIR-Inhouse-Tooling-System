@@ -9,6 +9,7 @@ from mcp.server.mcpserver import MCPServer
 
 from pfair_mcp.client import get_client
 from pfair_mcp.logging_setup import run_logged
+from pfair_mcp.tools._format import READ_ONLY
 
 
 def _who(ref: dict | None) -> str:
@@ -71,7 +72,7 @@ async def _get_ecr(ecr_id: str) -> str:
 
 
 def register(mcp: MCPServer) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def list_ecrs(status: str | None = None) -> str:
         """List Engineering Change Requests, optionally filtered by status.
 
@@ -81,7 +82,7 @@ def register(mcp: MCPServer) -> None:
         """
         return await run_logged("list_ecrs", {"status": status}, lambda: _list_ecrs(status))
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_ecr(ecr_id: str) -> str:
         """Get full detail for one Engineering Change Request, including
         who requested it, who's tagged to approve it, its review notes if

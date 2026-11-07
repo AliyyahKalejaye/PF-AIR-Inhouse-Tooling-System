@@ -106,12 +106,41 @@ whatever backend `PFAIR_BASE_URL` points at.
 
 ## Connect it to Claude Desktop
 
-Open your Claude Desktop config file:
+### Option A: Desktop Extension (.mcpb) — recommended
+
+Some builds of the Claude desktop app (the Cowork-era client in particular)
+don't read local server entries from a hand-edited `claude_desktop_config.json`
+the traditional way — they install local servers as a packaged **Desktop
+Extension** instead, via a "Drag .MCPB or .DXT files here to install" drop
+zone under Settings → wherever local/installed servers are listed (next to
+whatever other local MCP servers, like Claude in Chrome, already show up
+there). If you're not sure which your build uses, try this first — it's the
+one your app's own UI offers.
+
+`manifest.json` and `.mcpbignore` in this folder build that package:
+
+```bash
+cd mcp
+npm install -g @anthropic-ai/mcpb   # one-time
+mcpb pack . pfair-tooling.mcpb
+```
+
+Then drag `pfair-tooling.mcpb` into that drop zone in Claude Desktop. It'll
+prompt you for three fields at install time — **PF-AIR backend URL**
+(defaults to the Render URL), **service account email**, and **service
+account password** — instead of you editing `.env` or any config file by
+hand. Those values get passed to the server as environment variables at
+launch, the same `PFAIR_*` variables `config.py` already reads, so nothing
+about the server code itself changes based on how it was installed.
+
+### Option B: manual `claude_desktop_config.json` entry
+
+If your build does use the traditional config file, open it:
 
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-Add an entry under `mcpServers` (merge with whatever's already there —
+and add an entry under `mcpServers` (merge with whatever's already there —
 don't replace the whole file if other servers are configured):
 
 ```json
@@ -137,10 +166,17 @@ slashes — both work). `--directory` is what makes `uv` run from inside
 to `pyproject.toml` — the service account credentials never need to go in
 this config file.
 
-Quit and reopen Claude Desktop completely (not just close the window) for
-it to pick up the new server. Once it's running, Claude Desktop shows a
-small tools/plug icon in the chat input — click it to confirm
-`pfair-tooling`'s 8 tools are listed.
+A real gotcha to know about on Windows: some MSIX-packaged builds read a
+*different*, virtualized copy of `claude_desktop_config.json` than the one
+their own "Edit Config" button opens, so edits through that button silently
+don't take effect. If Option A's drop zone exists in your build, it sidesteps
+this problem entirely — use it instead of chasing down which config file
+copy is the real one.
+
+Either way, quit and reopen Claude Desktop completely (not just close the
+window) for it to pick up the new server. Once it's running, Claude Desktop
+shows `pfair-tooling` listed among its local MCP servers / in the tools
+picker — check that its 8 tools are listed there.
 
 ### First test
 

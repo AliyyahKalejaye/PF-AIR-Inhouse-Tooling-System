@@ -250,10 +250,16 @@ uv run mypy src
 - **"No PF-AIR service account configured"** — `.env` is missing or
   `PFAIR_SERVICE_EMAIL`/`PFAIR_SERVICE_PASSWORD` are blank. Check the file
   is actually named `.env` (not `.env.example`) and sits in `mcp/`.
-- **"Couldn't reach the PF-AIR backend"** — the backend isn't running, or
-  `PFAIR_BASE_URL`/`PFAIR_API_PREFIX` don't match where it's actually
-  listening. Confirm `curl http://localhost:8000/api/v1/health` works
-  first.
+- **"Couldn't reach the PF-AIR backend ... timed out"** — almost always
+  Render's free tier waking up from idle; the first request after a quiet
+  spell can take 60+ seconds. The client waits up to 90 seconds, so this
+  should be rare — just ask again a minute later.
+- **"Couldn't reach the PF-AIR backend" (any other reason)** — run
+  `uv run python diagnose_connection.py` from `mcp/`. It uses the same
+  settings as the server and reports, step by step, whether `/health`,
+  the login, and `/projects` work, with the exact error type and timing.
+  If it passes but Claude Desktop still can't connect, the problem is in
+  how the extension was installed or configured, not the network.
 - **"PF-AIR returned an error: Incorrect email or password."** — the
   service account's credentials in `.env` don't match what you signed up
   with; re-run the signup `curl` command or double-check for typos.

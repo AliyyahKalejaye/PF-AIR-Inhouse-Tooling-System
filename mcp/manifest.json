@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "pfair-tooling",
   "display_name": "PF-AIR Tooling",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Query Proforce Airsystems' in-house engineering tooling (PF-AIR): component inventory and stock levels, BOM checks, project/MIL shortfalls, and Engineering Change Requests. Read-only (Phase 1).",
   "author": {
     "name": "Proforce Airsystems Limited"

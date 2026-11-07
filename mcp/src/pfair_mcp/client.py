@@ -54,6 +54,21 @@ def _extract_detail(response: httpx.Response) -> str:
     return str(body)[:500]
 
 
+def _describe_request_error(exc: httpx.RequestError, api_base: str) -> str:
+    """Turn an httpx transport error into a readable message. Some httpx
+    errors (timeouts especially) stringify to an empty string, which left
+    the old message ending in a bare colon with no clue what went wrong —
+    so always include the error type, and spell out the timeout case."""
+    if isinstance(exc, httpx.TimeoutException):
+        return (
+            f"Couldn't reach PF-AIR at {api_base}: timed out ({type(exc).__name__}). "
+            "If the backend is on Render's free tier it may still be waking up "
+            "from idle — try again in a minute."
+        )
+    detail = str(exc) or "no further detail"
+    return f"Couldn't reach PF-AIR at {api_base}: {type(exc).__name__}: {detail}"
+
+
 class PFAirClient:
     """One instance is created per server process and reused across tool
     calls, so the access token (and the underlying httpx connection pool)
@@ -89,7 +104,7 @@ class PFAirClient:
             )
         except httpx.RequestError as exc:
             raise PFAirConnectionError(
-                f"Couldn't reach PF-AIR at {self._settings.api_base}: {exc}"
+                _describe_request_error(exc, self._settings.api_base)
             ) from exc
 
         if response.status_code != httpx.codes.OK:
@@ -121,7 +136,7 @@ class PFAirClient:
             )
         except httpx.RequestError as exc:
             raise PFAirConnectionError(
-                f"Couldn't reach PF-AIR at {self._settings.api_base}: {exc}"
+                _describe_request_error(exc, self._settings.api_base)
             ) from exc
 
         if response.status_code == httpx.codes.UNAUTHORIZED and not _retrying:

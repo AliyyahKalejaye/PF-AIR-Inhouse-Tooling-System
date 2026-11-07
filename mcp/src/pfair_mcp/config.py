@@ -23,8 +23,11 @@ class Settings(BaseSettings):
 
     # Per-request timeout to the PF-AIR API. Generous but not unbounded —
     # a hung backend shouldn't hang the MCP tool call (and therefore the
-    # whole client conversation) forever.
-    request_timeout_seconds: float = 30.0
+    # whole client conversation) forever. 90s rather than 30s because
+    # Render's free tier can take 60+ seconds to answer the first request
+    # after it's been idle (cold start); 30s made every first call of the
+    # day fail with an empty-message timeout.
+    request_timeout_seconds: float = 90.0
 
     @property
     def api_base(self) -> str:

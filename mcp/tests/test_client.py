@@ -67,6 +67,15 @@ async def test_connection_error_is_wrapped(respx_mock, mock_login) -> None:
         await client.get("/components")
 
 
+async def test_timeout_message_is_not_blank(respx_mock) -> None:
+    # httpx timeouts stringify to "", which used to leave a message ending
+    # in a bare colon. Render cold starts hit this on the first call of the day.
+    respx_mock.post(f"{API_BASE}/auth/login").mock(side_effect=httpx.ReadTimeout(""))
+
+    with pytest.raises(PFAirConnectionError, match="timed out \\(ReadTimeout\\).*waking up"):
+        await get_client().get("/components")
+
+
 async def test_login_without_credentials_raises_clear_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

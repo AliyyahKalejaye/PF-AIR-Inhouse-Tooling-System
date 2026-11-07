@@ -63,33 +63,63 @@ type, just a regular signup that happens to be used by a service instead
 of a person. Any account works; none of the Phase 1 routes require the
 `admin` role.
 
-With the backend running locally (`http://localhost:8000` by default),
-create one:
+This project doesn't run the backend locally day to day (it deploys to
+Render, which is already connected to the real Supabase data), so create
+the account against the live Render URL rather than `localhost:8000`
+unless you specifically are running a local backend.
+
+**On Windows, use PowerShell's `Invoke-RestMethod`, not `curl` with escaped
+double quotes.** `curl -d "{\"name\":...}"` reliably gets its quotes
+mangled by PowerShell's own command-line parsing before `curl` ever sees
+them — it silently sends an empty `{}` body instead of your real JSON,
+which then fails with a confusing "JSON decode error" instead of an
+obviously-wrong-input error. `Invoke-RestMethod` with a **single-quoted**
+`-Body` string sidesteps this (PowerShell treats single-quoted strings
+literally, no escaping needed):
+
+```powershell
+Invoke-RestMethod -Uri "https://proforce-tooling-api.onrender.com/api/v1/auth/signup" -Method Post -ContentType "application/json" -TimeoutSec 60 -Body '{"name":"MCP Service Account","email":"mcp-service@proforcedefence.com","staff_id":"MCP-SVC-01","password":"choose-a-strong-password-here"}'
+```
+
+On macOS/Linux, a normal `curl` with single-quoted `-d` works fine (no
+Windows-specific quoting problem):
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/signup \
+curl -X POST https://proforce-tooling-api.onrender.com/api/v1/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "MCP Service Account",
-    "email": "mcp-service@proforcedefence.com",
-    "staff_id": "MCP-SVC-01",
-    "password": "choose-a-strong-password-here"
-  }'
+  -d '{"name":"MCP Service Account","email":"mcp-service@proforcedefence.com","staff_id":"MCP-SVC-01","password":"choose-a-strong-password-here"}'
 ```
+
+Two things to expect either way:
+- If Render's free tier has been idle, the first request can take
+  **30–60+ seconds** to respond (cold start) — that's normal, not a
+  failure. A quick way to confirm the backend is actually awake first:
+  `Invoke-RestMethod -Uri ".../api/v1/health" -TimeoutSec 60` responds
+  instantly once it's warm and doesn't touch the database, so it's a
+  useful way to tell "still waking up" apart from a real problem.
+- A `409 Conflict` back from the signup call means this exact account
+  already exists — that's fine, it just means you can go straight to
+  using those same credentials rather than treating it as a failure.
 
 Pick a `staff_id` that won't collide with a real person's (anything
 unused works — `staff_id` just has to be unique). Then fill in `mcp/.env`:
 
 ```bash
-PFAIR_BASE_URL=http://localhost:8000
+PFAIR_BASE_URL=https://proforce-tooling-api.onrender.com
 PFAIR_API_PREFIX=/api/v1
 PFAIR_SERVICE_EMAIL=mcp-service@proforcedefence.com
 PFAIR_SERVICE_PASSWORD=choose-a-strong-password-here
 PFAIR_LOG_FILE=./logs/tool_calls.log
 ```
 
+(If you do have a local backend running and want to point this server at
+it instead, swap `PFAIR_BASE_URL` to `http://localhost:8000` and run the
+signup request against that instead — the command's otherwise identical.)
+
 **Never commit `.env`** — `mcp/.gitignore` already excludes it (and
 `mcp/logs/`), same idea as `backend/.gitignore`'s own `.env` exclusion.
+If you install via the `.mcpb` Desktop Extension below instead, you won't
+touch `.env` at all — credentials get entered through the install prompt.
 
 ### Try it standalone (optional, before wiring up Claude Desktop)
 

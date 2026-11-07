@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import base64
-
 import httpx
 
-from pfair_mcp.tools.bom import _check_bom
+from pfair_mcp.tools.bom import BOMLine, _check_bom
 from tests.conftest import API_BASE, make_component
 
 
@@ -55,10 +53,21 @@ async def test_check_bom_reports_shortages(respx_mock, mock_login) -> None:
         return_value=httpx.Response(200, json=_bom_response("bom-1", items)),
     )
 
-    content = base64.b64encode(b"raw_name,qty\nFrame Arm,4\n").decode()
-    result = await _check_bom("zd550_bom.csv", content)
+    result = await _check_bom(
+        "zd550_bom.xlsx",
+        [
+            BOMLine(part="Frame Arm", quantity=4),
+            BOMLine(part="Exotic Capacitor 999uF", quantity=1),
+            BOMLine(part="Prop Nut", quantity=4),
+        ],
+    )
 
     assert route.called
+    # The lines are re-packed as a CSV upload with headers the backend's
+    # extract_bom_lines matches exactly.
+    body = route.calls[0].request.content
+    assert b'filename="zd550_bom.csv"' in body
+    assert b"Part,Qty\r\nFrame Arm,4\r\nExotic Capacitor 999uF,1\r\nProp Nut,4" in body
     assert "1 available, 1 low stock, 1 missing" in result
     assert "Frame Arm: need 4, only 2 in stock (short by 2)" in result
     assert "Exotic Capacitor 999uF: need 1, NOT FOUND in inventory" in result
@@ -81,14 +90,15 @@ async def test_check_bom_everything_available(respx_mock, mock_login) -> None:
     respx_mock.post(f"{API_BASE}/bom/check").mock(
         return_value=httpx.Response(200, json=_bom_response("bom-2", items))
     )
-    content = base64.b64encode(b"raw_name,qty\nProp Nut,4\n").decode()
-    result = await _check_bom("bom.csv", content)
+    result = await _check_bom("bom.csv", [BOMLine(part="Prop Nut", quantity=4)])
     assert "Everything on this BOM is fully available." in result
 
 
-async def test_check_bom_invalid_base64_returns_clear_message() -> None:
-    result = await _check_bom("bom.csv", "not-valid-base64!!!")
-    assert "valid base64" in result
+async def test_check_bom_with_no_named_lines_does_not_upload(respx_mock) -> None:
+    route = respx_mock.post(f"{API_BASE}/bom/check")
+    result = await _check_bom("bom.csv", [BOMLine(part="   ", quantity=2)])
+    assert "no lines with a part name" in result
+    assert not route.called
 
 
 async def test_check_bom_suggests_closest_match_when_missing(respx_mock, mock_login) -> None:
@@ -107,6 +117,5 @@ async def test_check_bom_suggests_closest_match_when_missing(respx_mock, mock_lo
     respx_mock.post(f"{API_BASE}/bom/check").mock(
         return_value=httpx.Response(200, json=_bom_response("bom-3", items))
     )
-    content = base64.b64encode(b"raw_name,qty\nExotic Capacitor 999uF,1\n").decode()
-    result = await _check_bom("bom.csv", content)
+    result = await _check_bom("bom.csv", [BOMLine(part="Exotic Capacitor 999uF")])
     assert "closest match: Similar Capacitor 1000uF, score 0.82" in result

@@ -3,7 +3,16 @@ Called once from server.py at startup."""
 
 from mcp.server.mcpserver import MCPServer
 
-from pfair_mcp.tools import bom, components, ecr, ecr_submit, projects
+from pfair_mcp.tools import (
+    bom,
+    components,
+    deletes,
+    ecr,
+    ecr_submit,
+    inventory_write,
+    project_write,
+    projects,
+)
 
 
 def register_all(mcp: MCPServer) -> None:
@@ -12,3 +21,6 @@ def register_all(mcp: MCPServer) -> None:
     projects.register(mcp)
     ecr.register(mcp)
     ecr_submit.register(mcp)
+    project_write.register(mcp)
+    inventory_write.register(mcp)
+    deletes.register(mcp)

@@ -165,13 +165,48 @@ async def test_bom_code_cannot_submit_an_ecr(respx_mock, mock_login) -> None:
 async def test_tool_surface_and_annotations() -> None:
     tools = {t.name: t for t in await mcp.list_tools()}
 
-    # Decisions stay human-only: nothing that approves, rejects,
-    # implements, edits or deletes is exposed.
+    # The complete tool surface. Anything new has to be added here on
+    # purpose — in particular, ECR decisions (approve/reject/implement),
+    # ECR edits/deletes and inventory-part deletes stay human-only.
+    assert set(tools) == {
+        "search_components",
+        "get_component",
+        "update_component",
+        "preview_inventory_import",
+        "import_inventory",
+        "check_bom",
+        "preview_bom_reservation",
+        "reserve_bom",
+        "list_projects",
+        "get_project",
+        "check_project_shortfall",
+        "preview_new_project",
+        "create_project",
+        "update_project",
+        "add_parts_list_item",
+        "set_parts_list_quantity",
+        "add_project_link",
+        "preview_delete",
+        "confirm_delete",
+        "list_ecrs",
+        "get_ecr",
+        "preview_ecr",
+        "submit_ecr",
+    }
     for name in tools:
-        assert not re.search(r"approve|reject|implement|delete|update|edit", name), name
+        assert not re.search(r"approve|reject|implement", name), name
 
     assert tools["reserve_bom"].annotations.destructive_hint is True
     assert tools["reserve_bom"].annotations.read_only_hint is False
     assert tools["submit_ecr"].annotations.read_only_hint is False
-    for read_only in ("preview_bom_reservation", "preview_ecr", "list_projects", "get_ecr"):
+    assert tools["confirm_delete"].annotations.destructive_hint is True
+    for read_only in (
+        "preview_bom_reservation",
+        "preview_ecr",
+        "preview_new_project",
+        "preview_inventory_import",
+        "preview_delete",
+        "list_projects",
+        "get_ecr",
+    ):
         assert tools[read_only].annotations.read_only_hint is True

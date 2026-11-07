@@ -1,4 +1,4 @@
-# PF-AIR MCP Server (Phase 2 — local, read + guarded writes)
+# PF-AIR MCP Server (local, read + guarded writes)
 
 An MCP (Model Context Protocol) server that lets an AI client (Claude
 Desktop) query real PF-AIR data — component stock, project/MIL status,
@@ -10,12 +10,24 @@ other client.
 This is a separate service from `backend/` — nothing there was touched to
 build this.
 
-**Phase 1** added 8 read tools. **Phase 2** adds two write actions —
-reserving a checked BOM's stock and submitting an Engineering Change
-Request — each split into a preview tool and a confirm tool (see
-[Write tools](#write-tools-phase-2) below). Approving, rejecting,
-implementing, editing and deleting ECRs stay human-only in the web app and
-are not exposed as tools.
+**Phase 1** added the read tools. **Phase 2** added reserving a checked
+BOM's stock and submitting Engineering Change Requests. **Phase 2b** adds
+working on projects (create from a document, edit, parts lists, links),
+adding to inventory, and deleting projects / parts-list lines / media —
+see [Write tools](#write-tools). Approving, rejecting, implementing,
+editing and deleting ECRs, and deleting inventory parts, stay human-only
+in the web app and are not exposed as tools.
+
+### How attached files get in
+
+The extension runs on each person's computer and can't see files attached
+in a Claude chat. So when someone attaches a project document, BOM or
+inventory spreadsheet, **Claude reads it and passes the contents to the
+tools as structured data** (project fields, BOM lines, inventory rows).
+Nothing depends on where anyone keeps their files. Limits: this suits
+typical documents and sheets of up to a few hundred rows — for very large
+imports the web app's bulk import is faster. Images and CAD files can't be
+attached to a project from the chat (only links can); use the web app.
 
 ## Tools
 
@@ -23,7 +35,7 @@ are not exposed as tools.
 |---|---|---|
 | `search_components` | `GET /components`, `GET /categories` | Search inventory by name/SKU/brand/type/description and/or category, with stock levels. |
 | `get_component` | `GET /components/{id}` | Full detail for one component. |
-| `check_bom` | `POST /bom/check` | Upload a BOM spreadsheet, see what's available/low/missing. **One-off file check** — see note below. |
+| `check_bom` | `POST /bom/check` | Check BOM lines (read from an attached BOM) against inventory: available/low/missing. Re-packed as a CSV upload. **One-off check** — see note below. |
 | `list_projects` | `GET /projects` | List projects, with an optional title search (client-side — the API itself only filters by status). |
 | `get_project` | `GET /projects/{id}` | A project's write-up and MIL (Minimum Item List) with each part's current stock. |
 | `check_project_shortfall` | `GET /projects/{id}` | **What's short for a given project's build**, computed from its MIL vs. current stock. |
@@ -33,6 +45,17 @@ are not exposed as tools.
 | `reserve_bom` | `POST /bom/{id}/reserve` | Phase 2. **Deducts stock, no undo.** Takes only the code from the preview. |
 | `preview_ecr` | `GET /projects/{id}`, `GET /components/{id}`, `GET /ecr/approvers` | Phase 2. Validates and shows a new change request and who'd be notified. Changes nothing; returns a code. |
 | `submit_ecr` | `POST /ecr` | Phase 2. **Creates the request and notifies people.** Takes only the code from the preview. |
+| `preview_new_project` | `GET /projects`, component lookups | Shows a new project (write-up + parts list) before creating it; flags duplicate titles and parts that don't match exactly one inventory item. Returns a code. |
+| `create_project` | `POST /projects`, `POST /projects/{id}/mil-items` | **Creates the project and its parts list; notifies everyone.** Takes only the code. |
+| `update_project` | `PATCH /projects/{id}` | Edit write-up fields or status (only fields passed change; `""` clears). |
+| `add_parts_list_item` | `POST /projects/{id}/mil-items` | Add an inventory part to a project's parts list. |
+| `set_parts_list_quantity` | `PATCH /projects/{id}/mil-items/{item_id}` | Change how many of a listed part a project needs. |
+| `add_project_link` | `POST /projects/{id}/media/link` | Attach a link (e.g. a code repo) to a project. |
+| `preview_inventory_import` | `GET /components`, `GET /categories` | Predicts, row by row, which parts an import creates and which existing parts gain stock (same matching rule as the backend). Returns a code. |
+| `import_inventory` | `POST /bulk-import/commit` | **Creates parts / adds stock.** Takes only the code. |
+| `update_component` | `PATCH /components/{id}` | Edit one inventory part; `quantity` **sets** stock (e.g. after a count). |
+| `preview_delete` | `GET /projects/{id}`, `GET /ecr` | Shows what deleting a project, parts-list line or media item takes with it. Returns a code. |
+| `confirm_delete` | `DELETE /projects/...` | **Deletes, no undo.** Takes only the code. |
 
 **`check_bom` vs. `check_project_shortfall`** — these answer different
 questions and it's easy to reach for the wrong one. PF-AIR has no concept
@@ -48,20 +71,27 @@ required. So:
 - "I have this BOM spreadsheet, what's missing?" → `check_bom(...)` with
   the file's bytes.
 
-## Write tools (Phase 2)
+## Write tools
 
-Both write actions work the same way:
+Anything that does several things at once, or can't be undone, works the
+same way: creating a project, importing inventory, reserving a BOM,
+submitting a change request, and every delete.
 
 1. A **preview** tool works out exactly what would happen and returns a
    single-use confirmation code (e.g. `ECR-3F9A1C`), valid for 10 minutes.
 2. The **write** tool takes *only* that code — not the details again — so
    it can only ever do exactly what was previewed.
 
+Single edits — `update_project`, `add_parts_list_item`,
+`set_parts_list_quantity`, `add_project_link`, `update_component` — run
+directly; Claude Desktop's approval prompt is the checkpoint for those.
+
 The code proves a preview happened; it doesn't prove a person read it,
 since the same AI that ran the preview could pass the code straight back.
 **The real checkpoint is Claude Desktop's tool permissions**: in the
-extension's settings, set `reserve_bom` and `submit_ecr` to ask for
-approval every time (they're annotated as write tools, `reserve_bom` as
+extension's settings, set every write tool (`create_project`,
+`import_inventory`, `reserve_bom`, `submit_ecr`, `confirm_delete`, and the
+single-edit tools) to ask for approval every time (they're annotated as write tools, `reserve_bom` and `confirm_delete` as
 destructive, which clients use to decide what to ask about — but check
 the setting rather than assuming). Codes live in memory only, so
 restarting the server or reinstalling the extension cancels any that are
@@ -78,6 +108,39 @@ shared account: a request submitted this way can't be edited or withdrawn
 by the person who asked from their own web-app login (only the requester
 or an admin can) — ask an admin, or submit from the web app instead if
 you'll want to edit it.
+
+### Projects
+
+- A parts-list line has to point at a real inventory part, matched by id
+  or exact name (case, spaces and punctuation ignored, like the backend's
+  bulk import). Anything looser lists the candidates instead of guessing —
+  e.g. "M3" when inventory has M3x10 and M3x12 screws. Parts not in
+  inventory yet need adding first (`preview_inventory_import`).
+- Each part can only be on a project's list once; repeats in one request
+  are merged, and `add_parts_list_item` on a listed part tells you to use
+  `set_parts_list_quantity` instead.
+- New projects get "Created via Claude on behalf of <name>" appended to
+  their Note. If a parts-list line fails after the project was created,
+  the result says which, and the project is kept.
+
+### Inventory
+
+`POST /bulk-import/commit` **adds** each row's quantity to a matching
+existing part (same name and brand, ignoring case/spaces/punctuation; a
+row without a brand matches a branded part). Importing a full stock count
+on top of existing stock would double it, so the preview shows every
+"10 -> 15" before anything is written, and says to use `update_component`
+(which sets an absolute quantity) for stock counts. Categories must
+already exist; unknown ones are listed and those parts are created
+uncategorized, as in the web app.
+
+### Deleting
+
+`preview_delete` covers a whole project (its parts list and media go with
+it, including stored files; linked change requests lose their project
+link; everyone is notified), a single parts-list line (the inventory part
+stays), or a media item (and its stored file). Inventory parts and change
+requests can't be deleted from here.
 
 ### Reserving a BOM
 
@@ -231,7 +294,7 @@ mcpb pack . pfair-tooling.mcpb
 Then drag `pfair-tooling.mcpb` into that drop zone in Claude Desktop. It'll
 prompt you for four fields at install time — **PF-AIR backend URL**
 (defaults to the Render URL), **service account email**, **service
-account password**, and **your name** (see [Write tools](#write-tools-phase-2)) — instead of you editing `.env` or any config file by
+account password**, and **your name** (see [Write tools](#write-tools)) — instead of you editing `.env` or any config file by
 hand. Those values get passed to the server as environment variables at
 launch, the same `PFAIR_*` variables `config.py` already reads, so nothing
 about the server code itself changes based on how it was installed.

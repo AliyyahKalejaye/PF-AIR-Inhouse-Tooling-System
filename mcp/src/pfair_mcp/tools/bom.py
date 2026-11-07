@@ -1,6 +1,10 @@
 """check_bom — wraps POST /bom/check (see backend/app/api/routes/bom.py).
 
-Note on scope: this endpoint checks a BOM *spreadsheet file* you hand it —
+The backend only accepts a spreadsheet upload, but the extension can't see
+files attached in the chat, so Claude reads the attached BOM and passes its
+lines; _lines_to_csv turns them back into a CSV for the upload.
+
+Note on scope: this endpoint checks a BOM —
 PF-AIR has no concept of a BOM stored against a project, so this can't
 answer "what's short for project X" by itself. That question is
 `check_project_shortfall` in tools/projects.py, which works off a
@@ -14,12 +18,12 @@ Phase 2 adds reserving a checked BOM's available items — see the
 
 from __future__ import annotations
 
-import base64
-import binascii
-import mimetypes
+import csv
+import io
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from pydantic import BaseModel, Field
 
 from pfair_mcp import confirmations
 from pfair_mcp.client import PFAirAPIError, get_client
@@ -34,45 +38,58 @@ from pfair_mcp.tools._format import CREATES_RECORD_ONLY, READ_ONLY, WRITE_IRREVE
 _checked_boms: dict[str, dict[str, Any]] = {}
 
 
-async def _check_bom(filename: str, file_content_base64: str) -> str:
-    try:
-        raw_bytes = base64.b64decode(file_content_base64, validate=True)
-    except (binascii.Error, ValueError):
-        return (
-            "file_content_base64 isn't valid base64 — "
-            "make sure the file bytes were encoded correctly."
-        )
+class BOMLine(BaseModel):
+    part: str = Field(description="Part name as written on the BOM.")
+    quantity: int = Field(default=1, ge=1, description="Quantity needed.")
 
-    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
+def _lines_to_csv(lines: list[BOMLine]) -> bytes:
+    """POST /bom/check only accepts a .csv/.xlsx upload. Claude reads the
+    BOM the user attached and passes its lines; this writes them into a
+    two-column CSV with headers the backend's extract_bom_lines recognises
+    exactly ("Part", "Qty"), so matching works the same as a web upload."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Part", "Qty"])
+    for line in lines:
+        writer.writerow([line.part.strip(), line.quantity])
+    return buffer.getvalue().encode("utf-8")
+
+
+async def _check_bom(bom_name: str, lines: list[BOMLine]) -> str:
+    lines = [line for line in lines if line.part.strip()]
+    if not lines:
+        return "The BOM has no lines with a part name."
+
+    stem = bom_name.strip().rsplit(".", 1)[0] or "bom"
     client = get_client()
     data = await client.post(
         "/bom/check",
-        files={"file": (filename, raw_bytes, content_type)},
+        files={"file": (f"{stem}.csv", _lines_to_csv(lines), "text/csv")},
     )
 
     _checked_boms[str(data["bom_id"])] = data
 
     summary = data["summary"]
-    lines = [
+    out = [
         f"BOM '{data['filename']}' (id={data['bom_id']}): "
         f"{summary['available']} available, {summary['low_stock']} low stock, "
         f"{summary['missing']} missing out of {len(data['items'])} line items."
     ]
 
     if summary["available"]:
-        lines.append(
+        out.append(
             "Available items can be reserved (deducted from stock) with "
             f'preview_bom_reservation(bom_id="{data["bom_id"]}").'
         )
 
     short_items = [i for i in data["items"] if i["status"] in ("low_stock", "missing")]
     if not short_items:
-        lines.append("Everything on this BOM is fully available.")
-        return "\n".join(lines)
+        out.append("Everything on this BOM is fully available.")
+        return "\n".join(out)
 
-    lines.append("")
-    lines.append("Short or missing items:")
+    out.append("")
+    out.append("Short or missing items:")
     for item in short_items:
         requested = item["quantity_requested"]
         if item["status"] == "missing":
@@ -83,16 +100,16 @@ async def _check_bom(filename: str, file_content_base64: str) -> str:
                 if suggestion
                 else " (no close match found in inventory)"
             )
-            lines.append(f"- {item['raw_name']}: need {requested}, NOT FOUND in inventory{hint}")
+            out.append(f"- {item['raw_name']}: need {requested}, NOT FOUND in inventory{hint}")
         else:
             matched = item["matched_component"]
             on_hand = matched["quantity"] if matched else 0
             short_by = max(requested - on_hand, 0)
-            lines.append(
+            out.append(
                 f"- {item['raw_name']}: need {requested}, only {on_hand} in stock "
                 f"(short by {short_by})"
             )
-    return "\n".join(lines)
+    return "\n".join(out)
 
 
 # --- Reservation -----------------------------------------------------------
@@ -251,23 +268,23 @@ async def _reserve_bom(confirmation_code: str) -> str:
 
 def register(mcp: MCPServer) -> None:
     @mcp.tool(annotations=CREATES_RECORD_ONLY)
-    async def check_bom(filename: str, file_content_base64: str) -> str:
-        """Check a Bill of Materials spreadsheet against current PF-AIR
-        inventory and report which line items are fully available, low
-        stock, or missing entirely. This uploads and checks a one-off BOM
-        file — it does not look up an existing project's parts list (use
-        check_project_shortfall for "what's short for project X").
+    async def check_bom(bom_name: str, lines: list[BOMLine]) -> str:
+        """Check a Bill of Materials against current PF-AIR inventory and
+        report which lines are fully available, low stock, or missing.
+        When the user attaches a BOM file, read its part names and
+        quantities and pass them as `lines`. This is a one-off check of a
+        BOM — for "what's short for project X" use check_project_shortfall.
+        The result gives a bom_id that preview_bom_reservation can use.
 
         Args:
-            filename: Original filename, including its extension
-                (e.g. "zd550_bom.xlsx") — used to detect the file type.
-            file_content_base64: The spreadsheet file's raw bytes,
-                base64-encoded.
+            bom_name: Name for the BOM, e.g. the attached file's name.
+            lines: One entry per BOM line: the part name as written on the
+                BOM and the quantity needed.
         """
         return await run_logged(
             "check_bom",
-            {"filename": filename, "file_content_base64": file_content_base64},
-            lambda: _check_bom(filename, file_content_base64),
+            {"bom_name": bom_name, "lines": len(lines)},
+            lambda: _check_bom(bom_name, lines),
         )
 
     @mcp.tool(annotations=READ_ONLY)

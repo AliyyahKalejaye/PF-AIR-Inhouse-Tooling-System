@@ -172,6 +172,14 @@ class PFAirClient:
         response = await self.request("POST", path, json=json, files=files)
         return response.json()
 
+    async def patch(self, path: str, *, json: dict[str, Any]) -> Any:
+        response = await self.request("PATCH", path, json=json)
+        return response.json()
+
+    async def delete(self, path: str) -> None:
+        # PF-AIR's DELETE routes all return 204 with no body.
+        await self.request("DELETE", path)
+
 
 _client: PFAirClient | None = None
 

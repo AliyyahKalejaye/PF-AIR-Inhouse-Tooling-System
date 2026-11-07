@@ -167,9 +167,7 @@ async def test_writes_refused_without_operator_name(
 
 
 async def test_check_bom_result_can_be_previewed(respx_mock, mock_login, motor) -> None:
-    import base64
-
-    from pfair_mcp.tools.bom import _check_bom
+    from pfair_mcp.tools.bom import BOMLine, _check_bom
 
     respx_mock.post(f"{API_BASE}/bom/check").mock(
         return_value=httpx.Response(
@@ -184,7 +182,7 @@ async def test_check_bom_result_can_be_previewed(respx_mock, mock_login, motor) 
     )
     _mock_stock(respx_mock, motor, 14)
 
-    checked = await _check_bom("vtol.csv", base64.b64encode(b"x").decode())
+    checked = await _check_bom("vtol.csv", [BOMLine(part="Brushless Motor", quantity=4)])
     assert f'preview_bom_reservation(bom_id="{BOM_ID}")' in checked
 
     preview = await _preview_bom_reservation(BOM_ID)

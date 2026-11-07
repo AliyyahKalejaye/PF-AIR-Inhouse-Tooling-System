@@ -37,21 +37,30 @@ async def _list_projects(status: str | None, title_contains: str | None) -> str:
     return "\n".join(lines)
 
 
+_WRITE_UP = (
+    ("problem_statement", "Problem statement"),
+    ("abstract", "Abstract"),
+    ("specifications", "Specifications"),
+    ("requirement", "Requirement"),
+    ("next_steps", "Next steps"),
+    ("note", "Note"),
+)
+
+
 async def _get_project(project_id: str) -> str:
     client = get_client()
     p = await client.get(f"/projects/{project_id}")
 
     lines = [f"{p['title']} [{p['status']}] (id={p['id']})"]
-    if p.get("problem_statement"):
-        lines.append(f"Problem: {p['problem_statement']}")
-    if p.get("abstract"):
-        lines.append(f"Abstract: {p['abstract']}")
+    for key, label in _WRITE_UP:
+        if p.get(key):
+            lines.append(f"{label}: {p[key]}")
 
     mil_items = p["mil_items"]
     if not mil_items:
-        lines.append("MIL: no items added yet.")
+        lines.append("Parts list (MIL): no items added yet.")
     else:
-        lines.append(f"MIL ({len(mil_items)} item(s)):")
+        lines.append(f"Parts list (MIL, {len(mil_items)} item(s)):")
         for item in mil_items:
             component = item["component"]
             lines.append(
@@ -59,9 +68,12 @@ async def _get_project(project_id: str) -> str:
                 f"{component['quantity']} in stock, id={component['id']}"
             )
 
-    media_count = len(p["media"])
-    if media_count:
-        lines.append(f"Media: {media_count} file(s) attached.")
+    media = p["media"]
+    if media:
+        lines.append(f"Media ({len(media)}):")
+        for m in media:
+            label = m.get("filename") or m["file_url"]
+            lines.append(f"- {label} ({m['media_type']}) id={m['id']}")
     return "\n".join(lines)
 
 
